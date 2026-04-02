@@ -40,6 +40,7 @@ func main() {
 	protected.Use(middleware.JWTMiddleware)
 	protected.HandleFunc("/me", authHandler.Me).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}", authHandler.GetUser).Methods(http.MethodGet)
+	protected.HandleFunc("/users", authHandler.GetUsers).Methods(http.MethodGet)
 
 	port := ":8081"
 	fmt.Printf("Auth service pokrenut na portu %s\n", port)

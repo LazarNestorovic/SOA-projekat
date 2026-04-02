@@ -116,6 +116,21 @@ func (s *AuthService) GetUserByID(id uint) (*model.User, error) {
 	return user, nil
 }
 
+// GetAllUsers - dobij sve korisnike
+func (s *AuthService) GetAllUsers() ([]*model.User, error) {
+	users, err := s.userRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Očisti sve lozinke
+	for _, user := range users {
+		user.Password = ""
+	}
+
+	return users, nil
+}
+
 // isAllowedRole - proverite da li je uloga dozvoljena za registraciju
 func isAllowedRole(role model.Role) bool {
 	return role == model.Vodic || role == model.Turista

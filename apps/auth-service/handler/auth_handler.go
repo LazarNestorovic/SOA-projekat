@@ -134,6 +134,45 @@ func (h *AuthHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// GetUsers - API endpoint za dobijanje svih korisnika (samo za admina)
+func (h *AuthHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Proverite da li je korisnik autentifikovan
+	_, ok := r.Context().Value("userID").(uint)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Neautentifikovan korisnik",
+		})
+		return
+	}
+
+	// Proverite da li je korisnik admin
+	userRole, ok := r.Context().Value("role").(string)
+	if !ok || userRole != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Samo admin može videti sve korisnike",
+		})
+		return
+	}
+
+	users, err := h.authService.GetAllUsers()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"users": users,
+	})
+}
+
 // ExtractToken - ekstraktuj token iz zahteva
 func (h *AuthHandler) ExtractToken(r *http.Request) string {
 	bearerToken := r.Header.Get("Authorization")
