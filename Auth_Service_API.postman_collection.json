@@ -1,0 +1,145 @@
+{
+  "info": {
+    "_postman_id": "auth-service-collection",
+    "name": "Auth Service API",
+    "description": "Kolekcija za testiranje Auth Service API-ja",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Javne rute",
+      "item": [
+        {
+          "name": "Registracija - Vodič",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"jovan_vodic\",\n  \"email\": \"jovan@example.com\",\n  \"password\": \"lozinka123\",\n  \"role\": \"vodic\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8081/auth/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Registracija - Turista",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"ana_turista\",\n  \"email\": \"ana@example.com\",\n  \"password\": \"lozinka123\",\n  \"role\": \"turista\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8081/auth/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Prijava",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var jsonData = pm.response.json();",
+                  "  pm.environment.set(\"token\", jsonData.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jovan@example.com\",\n  \"password\": \"lozinka123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8081/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zaštićene rute",
+      "item": [
+        {
+          "name": "Dobijanje podataka korisnika",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8081/api/me",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["api", "me"]
+            }
+          }
+        },
+        {
+          "name": "Dobijanje korisnika po ID-u",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8081/api/users/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["api", "users", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
