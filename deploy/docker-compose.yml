@@ -1,0 +1,118 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soa-network
+
+  stakeholder-db:
+    image: postgres:16-alpine
+    container_name: stakeholder-db
+    environment:
+      POSTGRES_DB: stakeholder_db
+      POSTGRES_USER: stakeholder_user
+      POSTGRES_PASSWORD: stakeholder_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - stakeholder-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stakeholder_user -d stakeholder_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soa-network
+
+  blog-db:
+    image: postgres:16-alpine
+    container_name: blog-db
+    environment:
+      POSTGRES_DB: blog_db
+      POSTGRES_USER: blog_user
+      POSTGRES_PASSWORD: blog_pass
+    ports:
+      - "5435:5432"
+    volumes:
+      - blog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog_user -d blog_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soa-network
+
+  auth-service:
+    build: ../apps/auth-service
+    container_name: auth-service
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://auth_user:auth_pass@auth-db:5432/auth_db
+      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:3003
+      BLOG_SERVICE_URL: http://blog-service:3002
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - soa-network
+
+  stakeholder-service:
+    build: ../apps/stakeholder-service
+    container_name: stakeholder-service
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgres://stakeholder_user:stakeholder_pass@stakeholder-db:5432/stakeholder_db
+      AUTH_SERVICE_URL: http://auth-service:3001
+      BLOG_SERVICE_URL: http://blog-service:3002
+    depends_on:
+      stakeholder-db:
+        condition: service_healthy
+    networks:
+      - soa-network
+
+  blog-service:
+    build: ../apps/blog-service
+    container_name: blog-service
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://blog_user:blog_pass@blog-db:5432/blog_db
+      AUTH_SERVICE_URL: http://auth-service:3001
+      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:3003
+    depends_on:
+      blog-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      stakeholder-service:
+        condition: service_started
+    networks:
+      - soa-network
+
+volumes:
+  auth-db-data:
+  stakeholder-db-data:
+  blog-db-data:
+
+networks:
+  soa-network:
+    driver: bridge
