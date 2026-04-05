@@ -1,0 +1,148 @@
+{
+	"info": {
+		"name": "Blog Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8082/api"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Blogs",
+			"item": [
+				{
+					"name": "Get All Blogs",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/blogs",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						]
+					}
+				},
+				{
+					"name": "Get Blog By ID",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/blogs/1",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						]
+					}
+				},
+				{
+					"name": "Create Blog",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/blogs",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Moj prvi blog\",\n  \"description\": \"## Uvod\\n\\nOvo je **markdown** sadržaj bloga.\",\n  \"imageUrls\": []\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Comments",
+			"item": [
+				{
+					"name": "Add Comment",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/blogs/1/comments",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Odličan blog!\"\n}"
+						}
+					}
+				},
+				{
+					"name": "Edit Comment",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/blogs/1/comments/1",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Izmenjen komentar.\"\n}"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Likes",
+			"item": [
+				{
+					"name": "Like Blog",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/blogs/1/like",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						]
+					}
+				},
+				{
+					"name": "Unlike Blog",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/blogs/1/like",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}
