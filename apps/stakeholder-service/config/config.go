@@ -2,16 +2,19 @@ package config
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
+
+	_ "github.com/lib/pq"
 )
 
 type DBConfig struct {
-	Host string
-	Port string
-	User string
-	Password string	
-	DBName string
-	SSLMode string	
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
 }
 
 func NewDBConfig() *DBConfig {
@@ -32,7 +35,7 @@ func NewDBConfig() *DBConfig {
 
 	password := os.Getenv("DB_PASSWORD")
 	if password == "" {
-		password = "postgres"
+		password = "root"
 	}
 
 	dbname := os.Getenv("DB_NAME")
@@ -45,12 +48,30 @@ func NewDBConfig() *DBConfig {
 		sslmode = "disable"
 	}
 
-	return &DBConfig {
-		Host : host
-		Port : port
-		User : user
-		Password : password
-		DBName : dbname
-		SSLMode : sslmode
+	return &DBConfig{
+		Host:     host,
+		Port:     port,
+		User:     user,
+		Password: password,
+		DBName:   dbname,
+		SSLMode:  sslmode,
 	}
+}
+
+func ConnectDB(config *DBConfig) (*sql.DB, error) {
+	postgreSQLInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode)
+
+	db, err := sql.Open("postgres", postgreSQLInfo)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error with database opening: %w", err)
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("Error with database connecting: %w", err)
+	}
+
+	fmt.Println("Successful connected to database")
+	return db, nil
 }
