@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -171,13 +170,4 @@ func (h *AuthHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"users": users,
 	})
-}
-
-// ExtractToken - ekstraktuj token iz zahteva
-func (h *AuthHandler) ExtractToken(r *http.Request) string {
-	bearerToken := r.Header.Get("Authorization")
-	if len(bearerToken) > 7 && strings.HasPrefix(bearerToken, "Bearer ") {
-		return bearerToken[7:]
-	}
-	return ""
 }

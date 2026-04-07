@@ -10,11 +10,6 @@ const (
 	Turista Role = "turista"
 )
 
-var allowedRegistrationRoles = map[Role]bool{
-	Vodic:   true,
-	Turista: true,
-}
-
 type User struct {
 	ID        uint      `json:"id"`
 	Username  string    `json:"username"`
