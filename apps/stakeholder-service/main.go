@@ -35,9 +35,17 @@ func main() {
 	accountService := service.NewAccountService(accountRepository)
 	accountHandler := handler.NewAccountHandler(accountService)
 
+	profileRepository := repository.NewProfileRepository(db)
+	profileService := service.NewProfileService(profileRepository)
+	profileHandler := handler.NewProfileHandler(profileService)
+
 	router := mux.NewRouter()
 
 	account := router.PathPrefix("/account").Subrouter()
 	account.HandleFunc("/{id}/block", accountHandler.BlockAccount).Methods(http.MethodPut)
+
+	profile := router.PathPrefix("/profile").Subrouter()
+	profile.HandleFunc("/{id}", profileHandler.GetProfile).Methods(http.MethodGet)
+
 	http.ListenAndServe(":8082", router)
 }
