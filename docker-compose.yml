@@ -41,6 +41,26 @@ services:
     networks:
       - auth_network
 
+  stakeholder-service:
+    build:
+      context: .
+      dockerfile: ./apps/stakeholder-service/Dockerfile
+    container_name: stakeholder_service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: auth_service
+      DB_SSLMODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_network
+
 volumes:
   postgres_data:
 
