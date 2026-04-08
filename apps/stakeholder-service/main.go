@@ -3,14 +3,13 @@ package main
 import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 
-	"fmt"
 	"log"
 	"net/http"
-	"stakeholder-service/config"
-	"stakeholder-service/handler"
-	"stakeholder-service/middleware"
-	"stakeholder-service/repository"
-	"stakeholder-service/service"
+	"stakeholder_service/config"
+	"stakeholder_service/handler"
+	"stakeholder_service/middleware"
+	"stakeholder_service/repository"
+	"stakeholder_service/service"
 
 	"github.com/gorilla/mux"
 )
@@ -50,12 +49,12 @@ func main() {
 	router := mux.NewRouter()
 
 	// Javne rute (bez JWT)
-	auth := r.PathPrefix("/auth").Subrouter()
+	auth := router.PathPrefix("/auth").Subrouter()
 	auth.HandleFunc("/register", userHandler.Register).Methods(http.MethodPost)
 	auth.HandleFunc("/login", userHandler.Login).Methods(http.MethodPost)
 
 	// Zaštićene rute (sa JWT middleware-om)
-	protected := r.PathPrefix("/api").Subrouter()
+	protected := router.PathPrefix("/api").Subrouter()
 	protected.Use(middleware.JWTMiddleware)
 	protected.HandleFunc("/me", userHandler.Me).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}", userHandler.GetUser).Methods(http.MethodGet)

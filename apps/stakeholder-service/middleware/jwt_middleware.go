@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"stakeholder-service/utils"
+	"stakeholder_service/utils"
 	"strings"
 )
 

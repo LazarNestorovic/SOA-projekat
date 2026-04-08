@@ -10,8 +10,6 @@ type AccountService interface {
 	BlockAccount(ctx context.Context, id uint) error
 }
 
-type Role string
-
 const (
 	RoleGuide   Role = "guide"
 	RoleTourist Role = "tourist"

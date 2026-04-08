@@ -2,9 +2,9 @@ package service
 
 import (
 	"fmt"
-	"stakeholder-service/model"
-	"stakeholder-service/repository"
-	"stakeholder-service/utils"
+	"stakeholder_service/model"
+	"stakeholder_service/repository"
+	"stakeholder_service/utils"
 )
 
 type UserService struct {

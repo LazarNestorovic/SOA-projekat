@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"stakeholder-service/model"
+	"stakeholder_service/model"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

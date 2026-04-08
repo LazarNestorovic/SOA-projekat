@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"stakeholder-service/model"
+	"stakeholder_service/model"
 )
 
 type UserRepository struct {

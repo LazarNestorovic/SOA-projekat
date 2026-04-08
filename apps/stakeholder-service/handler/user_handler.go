@@ -3,8 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"stakeholder-service/model"
-	"stakeholder-service/service"
+	"stakeholder_service/model"
+	"stakeholder_service/service"
 	"strconv"
 
 	"github.com/gorilla/mux"
