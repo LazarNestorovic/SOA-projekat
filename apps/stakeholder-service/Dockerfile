@@ -1,19 +1,18 @@
 # Koristi Go build image
-FROM golang:1.26.1-alpine
+FROM golang:1.26.1-alpine AS builder
 
 WORKDIR /app
 
 # Instaliraj dependencies
 RUN apk add --no-cache git
 
-# Kopiraj go.mod i go.sum
-COPY apps/stakeholder-service/go.mod apps/stakeholder-service/go.sum ./
+# Kopiraj sve app direktorijume (trebam auth-service kao dependency)
+COPY apps/ ./apps
+
+WORKDIR /app/apps/stakeholder-service
 
 # Preuzmi module
 RUN go mod download
-
-# Kopiraj kod
-COPY apps/stakeholder-service/ .
 
 # Kompajliraj
 RUN go build -o stakeholder-service .
@@ -27,10 +26,8 @@ WORKDIR /root/
 RUN apk --no-cache add ca-certificates
 
 # Kopiraj binarnu datoteku iz builder stage-a
-COPY --from=0 /app/stakeholder-service .
+COPY --from=builder /app/apps/stakeholder-service/stakeholder-service .
 
-# Izloži port
 EXPOSE 8082
 
-# Pokreni
 CMD ["./stakeholder-service"]

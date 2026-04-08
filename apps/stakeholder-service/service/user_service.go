@@ -1,8 +1,10 @@
 package service
 
 import (
-	"auth-service/model"
+	"fmt"
+	"stakeholder-service/model"
 	"stakeholder-service/repository"
+	"stakeholder-service/utils"
 )
 
 type UserService struct {
@@ -13,6 +15,105 @@ func NewUserService(userRepo *repository.UserRepository) *UserService {
 	return &UserService{
 		userRepo: userRepo,
 	}
+}
+
+// Register - registruj novog korisnika
+func (s *UserService) Register(req *model.RegistrationRequest) (*model.User, error) {
+	// Validacija ulaza
+	if req.Username == "" || req.Password == "" || req.Email == "" {
+		return nil, fmt.Errorf("korisničko ime, lozinka i mejl su obavezni")
+	}
+
+	// Provera da li je uloga dozvoljens za registraciju
+	if !isAllowedRole(req.Role) {
+		return nil, fmt.Errorf("uloga nije dozvoljena za registraciju")
+	}
+
+	// Provera da li korisnik već postoji
+	exists, err := s.userRepo.IsEmailExists(req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, fmt.Errorf("korisnik sa tim mejlom već postoji")
+	}
+
+	// Provera da li korisničko ime postoji
+	exists, err = s.userRepo.IsUsernameExists(req.Username)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, fmt.Errorf("korisničko ime je već zauzeto")
+	}
+
+	// Heširaj lozinku
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri heširanju lozinke: %w", err)
+	}
+
+	// Kreiraj novog korisnika
+	user := &model.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: hashedPassword,
+		Role:     req.Role,
+	}
+
+	// Sačuvaj u bazi
+	err = s.userRepo.Create(user)
+	if err != nil {
+		return nil, err
+	}
+
+	// Očisti lozinku u odgovoru
+	user.Password = ""
+	return user, nil
+}
+
+// Login - prijavi korisnika
+func (s *UserService) Login(email, password string) (*model.AuthResponse, error) {
+	if email == "" || password == "" {
+		return nil, fmt.Errorf("mejl i lozinka su obavezni")
+	}
+
+	// Pronađi korisnika po mejlu
+	user, err := s.userRepo.GetByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("korisnik ne postoji")
+	}
+
+	// Verifikuj lozinku
+	if !utils.VerifyPassword(user.Password, password) {
+		return nil, fmt.Errorf("lozinka je pogrešna")
+	}
+
+	// Generiši JWT token
+	token, err := utils.GenerateToken(user)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri generisanju tokena: %w", err)
+	}
+
+	// Očisti lozinku u odgovoru
+	user.Password = ""
+
+	return &model.AuthResponse{
+		Token: token,
+		User:  *user,
+	}, nil
+}
+
+// GetUserByID - dobij korisnika po ID-u
+func (s *UserService) GetUserByID(id uint) (*model.User, error) {
+	user, err := s.userRepo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Očisti lozinku
+	user.Password = ""
+	return user, nil
 }
 
 // GetAllUsers - dobij sve korisnike
@@ -28,4 +129,14 @@ func (s *UserService) GetAllUsers() ([]*model.User, error) {
 	}
 
 	return users, nil
+}
+
+// isAllowedRole provera da li je uloga dozvoljens za registraciju
+func isAllowedRole(role model.Role) bool {
+	switch role {
+	case model.Admin, model.Vodic, model.Turista:
+		return true
+	default:
+		return false
+	}
 }
