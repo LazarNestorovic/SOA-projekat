@@ -1,0 +1,13 @@
+apps/auth-service/.env
+apps/auth-service/.DS_Store
+apps/auth-service/*.log
+apps/auth-service/auth-service
+apps/auth-service/dist/
+apps/auth-service/bin/
+node_modules/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
