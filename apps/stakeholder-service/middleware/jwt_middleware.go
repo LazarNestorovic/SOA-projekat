@@ -1,10 +1,10 @@
 package middleware
 
 import (
-	"auth-service/utils"
 	"context"
 	"encoding/json"
 	"net/http"
+	"stakeholder-service/utils"
 	"strings"
 )
 

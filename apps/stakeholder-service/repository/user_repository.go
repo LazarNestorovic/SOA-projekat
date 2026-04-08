@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"auth-service/model"
 	"database/sql"
 	"fmt"
+	"stakeholder-service/model"
 )
 
 type UserRepository struct {

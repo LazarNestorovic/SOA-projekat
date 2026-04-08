@@ -1,7 +1,7 @@
 package service
 
 import (
-	"auth-service/model"
+	"stakeholder-service/model"
 	"stakeholder-service/repository"
 )
 
