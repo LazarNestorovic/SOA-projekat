@@ -22,8 +22,8 @@ services:
 
   stakeholder-service:
     build:
-      context: ./apps/stakeholder-service
-      dockerfile: Dockerfile
+      context: ./apps
+      dockerfile: stakeholder-service/Dockerfile
     container_name: stakeholder_service
     ports:
       - "8082:8082"

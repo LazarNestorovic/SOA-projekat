@@ -1,10 +1,10 @@
 package middleware
 
 import (
+	authUtils "auth-service/utils"
 	"context"
 	"encoding/json"
 	"net/http"
-	"stakeholder_service/utils"
 	"strings"
 )
 
@@ -30,8 +30,8 @@ func JWTMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Koristi lokalne utils za validaciju
-		claims, err := utils.VerifyToken(tokenString)
+		// Koristi auth-service za validaciju tokena
+		claims, err := authUtils.VerifyToken(tokenString)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -23,6 +24,35 @@ type Claims struct {
 	Email    string `json:"email"`
 	Role     Role   `json:"role"`
 	jwt.RegisteredClaims
+}
+
+type User struct {
+	ID       uint
+	Username string
+	Email    string
+	Role     Role
+}
+
+// GenerateToken kreira JWT token
+func GenerateToken(user *User) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{
+		UserID:   user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }
 
 // VerifyToken verifikuj JWT token
