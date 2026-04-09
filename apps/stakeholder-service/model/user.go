@@ -6,8 +6,8 @@ type Role string
 
 const (
 	Admin   Role = "admin"
-	Vodic   Role = "vodic"
-	Turista Role = "turista"
+	Vodic   Role = "guide"
+	Turista Role = "tourist"
 )
 
 type User struct {
@@ -17,6 +17,7 @@ type User struct {
 	Role      Role      `json:"role"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
+	Blocked   bool      `json: "blocked"`
 }
 
 type RegistrationRequest struct {

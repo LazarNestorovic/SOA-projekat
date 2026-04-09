@@ -1,30 +1,9 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: stakeholder_postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: stakeholder_service
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./apps/stakeholder-service/migrations:/docker-entrypoint-initdb.d
-    networks:
-      - soa_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   stakeholder-service:
     build:
-      context: .
-      dockerfile: ./apps/stakeholder-service/Dockerfile
+      context: ./apps/stakeholder-service
+      dockerfile: Dockerfile
     container_name: stakeholder_service
     ports:
       - "8082:8082"
@@ -37,9 +16,6 @@ services:
       DB_SSLMODE: disable
       SERVER_PORT: 8082
       JWT_SECRET: your-secret-key-change-this-in-production
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - soa_network
 
