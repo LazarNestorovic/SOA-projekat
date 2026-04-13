@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"stakeholder_service/model"
 	"stakeholder_service/repository"
@@ -139,4 +140,16 @@ func isAllowedRole(role model.Role) bool {
 	default:
 		return false
 	}
+}
+
+func (s *UserService) BlockAccount(ctx context.Context, id uint) error {
+	//Proveriti da li account postoji
+	//Zatim proveriti da li je account vec blokiran
+
+	err := s.userRepo.BlockAccount(ctx, id)
+	if err != nil {
+		return fmt.Errorf("Block Account: %w", err)
+	}
+
+	return nil
 }

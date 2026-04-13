@@ -38,9 +38,9 @@ func main() {
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
-	accountRepository := repository.NewAccountRepository(db)
-	accountService := service.NewAccountService(accountRepository)
-	accountHandler := handler.NewAccountHandler(accountService)
+	//accountRepository := repository.NewAccountRepository(db)
+	//accountService := service.NewAccountService(accountRepository)
+	//accountHandler := handler.NewAccountHandler(accountService)
 
 	profileRepository := repository.NewProfileRepository(db)
 	profileService := service.NewProfileService(profileRepository)
@@ -59,12 +59,10 @@ func main() {
 	protected.HandleFunc("/me", userHandler.Me).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}", userHandler.GetUser).Methods(http.MethodGet)
 	protected.HandleFunc("/users", userHandler.GetUsers).Methods(http.MethodGet)
+	protected.HandleFunc("/users/{id}/block", userHandler.BlockAccount).Methods(http.MethodPut)
 
-	account := router.PathPrefix("/account").Subrouter()
-	account.HandleFunc("/{id}/block", accountHandler.BlockAccount).Methods(http.MethodPut)
-
-	profile := router.PathPrefix("/profile").Subrouter()
-	profile.HandleFunc("/{id}", profileHandler.GetProfile).Methods(http.MethodGet)
+	protected.HandleFunc("/profile/{id}", profileHandler.GetProfile).Methods(http.MethodGet)
+	protected.HandleFunc("/profile/{id}/update", profileHandler.UpdateProfile).Methods(http.MethodPut)
 
 	http.ListenAndServe(":8082", router)
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"stakeholder_service/model"
@@ -182,4 +183,29 @@ func (r *UserRepository) GetAll() ([]*model.User, error) {
 	}
 
 	return users, nil
+}
+
+func (r *UserRepository) BlockAccount(ctx context.Context, id uint) error {
+	query := `
+		UPDATE users
+		SET
+			blocked = TRUE
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("Block account: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("account not found")
+	}
+
+	return nil
 }

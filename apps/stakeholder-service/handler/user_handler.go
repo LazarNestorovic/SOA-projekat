@@ -198,3 +198,58 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 		"users": users,
 	})
 }
+
+func (h *UserHandler) BlockAccount(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userID")
+	if userID == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Neautentifikovan korisnik",
+		})
+		return
+	}
+
+	userRole := r.Context().Value("role")
+	if userRole == nil {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Nije moguće proveriti ulogu korisnika",
+		})
+		return
+	}
+
+	roleStr, ok := userRole.(string)
+	if !ok || roleStr != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Samo admin može videti podatke drugih korisnika",
+		})
+		return
+	}
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	u, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "invalid account id",
+		})
+		return
+	}
+	id := uint(u)
+
+	err = h.userService.BlockAccount(r.Context(), id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "account successfuly blocked",
+	})
+}
