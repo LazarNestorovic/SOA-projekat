@@ -1,21 +1,23 @@
 package service
 
 import (
-	authUtils "auth-service/utils"
 	"context"
 	"fmt"
+	"stakeholder_service/client"
 	"stakeholder_service/model"
 	"stakeholder_service/repository"
 	"stakeholder_service/utils"
 )
 
 type UserService struct {
-	userRepo *repository.UserRepository
+	userRepo   *repository.UserRepository
+	authClient *client.AuthClient
 }
 
 func NewUserService(userRepo *repository.UserRepository) *UserService {
 	return &UserService{
-		userRepo: userRepo,
+		userRepo:   userRepo,
+		authClient: client.NewAuthClientFromEnv(),
 	}
 }
 
@@ -91,14 +93,13 @@ func (s *UserService) Login(email, password string) (*model.AuthResponse, error)
 		return nil, fmt.Errorf("lozinka je pogrešna")
 	}
 
-	// Generiši JWT token koristeći auth-service
-	authUser := &authUtils.User{
-		ID:       user.ID,
+	// Generiši JWT token pozivom auth-service HTTP API-ja
+	token, err := s.authClient.IssueToken(context.Background(), client.IssueTokenRequest{
+		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		Role:     authUtils.Role(user.Role),
-	}
-	token, err := authUtils.GenerateToken(authUser)
+		Role:     string(user.Role),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("greška pri generisanju tokena: %w", err)
 	}
