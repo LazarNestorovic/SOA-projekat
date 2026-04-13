@@ -33,6 +33,14 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Role == model.Admin {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Admin uloga nije dozvoljena za registraciju",
+		})
+		return
+	}
+
 	// Registruj korisnika
 	user, err := h.userService.Register(&req)
 	if err != nil {
