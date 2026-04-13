@@ -43,6 +43,29 @@ services:
       auth-service:
         condition: service_healthy
 
+  blog-service:
+    build:
+      context: ./apps
+      dockerfile: blog-service/Dockerfile
+    container_name: blog_service
+    ports:
+      - "8083:8083"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      DB_NAME: blog_service
+      SERVER_PORT: 8083
+      AUTH_SERVICE_URL: http://auth-service:8081
+    networks:
+      - soa_network
+    depends_on:
+      auth-service:
+        condition: service_healthy
+
 networks:
   soa_network:
     driver: bridge

@@ -45,7 +45,7 @@ async function runMigrations() {
       );
     `);
 
-		console.log('Migracije uspešno pokrenute!');
+		console.log('Migracije uspesno pokrenute!');
 	} finally {
 		client.release();
 	}
