@@ -1,6 +1,7 @@
 package service
 
 import (
+	authUtils "auth-service/utils"
 	"context"
 	"fmt"
 	"stakeholder_service/model"
@@ -90,8 +91,14 @@ func (s *UserService) Login(email, password string) (*model.AuthResponse, error)
 		return nil, fmt.Errorf("lozinka je pogrešna")
 	}
 
-	// Generiši JWT token
-	token, err := utils.GenerateToken(user)
+	// Generiši JWT token koristeći auth-service
+	authUser := &authUtils.User{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     authUtils.Role(user.Role),
+	}
+	token, err := authUtils.GenerateToken(authUser)
 	if err != nil {
 		return nil, fmt.Errorf("greška pri generisanju tokena: %w", err)
 	}
