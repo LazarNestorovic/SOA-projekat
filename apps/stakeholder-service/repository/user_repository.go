@@ -150,7 +150,7 @@ func (r *UserRepository) IsUsernameExists(username string) (bool, error) {
 // GetAll vraća sve korisnike iz baze
 func (r *UserRepository) GetAll() ([]*model.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at
+		SELECT id, username, email, password, role, created_at, blocked
 		FROM users
 		ORDER BY id
 	`
@@ -171,6 +171,7 @@ func (r *UserRepository) GetAll() ([]*model.User, error) {
 			&user.Password,
 			&user.Role,
 			&user.CreatedAt,
+			&user.Blocked,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("greška pri čitanju korisnika: %w", err)

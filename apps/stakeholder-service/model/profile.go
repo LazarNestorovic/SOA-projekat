@@ -5,11 +5,17 @@ import "context"
 type ProfileRepository interface {
 	GetProfile(ctx context.Context, id uint) (*ProfileDto, error)
 	UpdateProfile(ctx context.Context, id uint, profile UpdateProfileRequest) (*ProfileDto, error)
+	CreateProfile(ctx context.Context, userID uint) (*ProfileDto, error)
+	GetProfileByUserId(ctx context.Context, userID uint) (*ProfileDto, error)
+	UpdateProfileByUserId(ctx context.Context, userID uint, profile UpdateProfileRequest) (*ProfileDto, error)
 }
 
 type ProfileService interface {
 	GetProfile(ctx context.Context, id uint) (*ProfileDto, error)
 	UpdateProfile(ctx context.Context, id uint, profile UpdateProfileRequest) (*ProfileDto, error)
+	CreateProfile(ctx context.Context, userID uint) (*ProfileDto, error)
+	GetProfileByUserId(ctx context.Context, userID uint) (*ProfileDto, error)
+	UpdateProfileByUserId(ctx context.Context, userID uint, profile UpdateProfileRequest) (*ProfileDto, error)
 }
 
 type Profile struct {

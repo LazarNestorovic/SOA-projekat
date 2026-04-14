@@ -10,8 +10,9 @@ import (
 )
 
 type UserService struct {
-	userRepo   *repository.UserRepository
-	authClient *client.AuthClient
+	userRepo    *repository.UserRepository
+	profileRepo model.ProfileRepository
+	authClient  *client.AuthClient
 }
 
 func NewUserService(userRepo *repository.UserRepository) *UserService {
@@ -19,6 +20,10 @@ func NewUserService(userRepo *repository.UserRepository) *UserService {
 		userRepo:   userRepo,
 		authClient: client.NewAuthClientFromEnv(),
 	}
+}
+
+func (s *UserService) SetProfileRepository(profileRepo model.ProfileRepository) {
+	s.profileRepo = profileRepo
 }
 
 // Register - registruj novog korisnika
@@ -69,6 +74,15 @@ func (s *UserService) Register(req *model.RegistrationRequest) (*model.User, err
 	err = s.userRepo.Create(user)
 	if err != nil {
 		return nil, err
+	}
+
+	// Kreiraj profil za novog korisnika ako je profileRepo dostupan
+	if s.profileRepo != nil {
+		_, err = s.profileRepo.CreateProfile(context.Background(), user.ID)
+		if err != nil {
+			// Log error ali nastavi da vraćaš korisnika (profil nije kritičan)
+			fmt.Printf("Upozorenje: Profil nije kreiran za korisnika %d: %v\n", user.ID, err)
+		}
 	}
 
 	// Očisti lozinku u odgovoru

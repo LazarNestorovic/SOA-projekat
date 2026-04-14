@@ -30,3 +30,29 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, id uint, profile mod
 
 	return updated, nil
 }
+
+func (s *ProfileService) CreateProfile(ctx context.Context, userID uint) (*model.ProfileDto, error) {
+	created, err := s.repo.CreateProfile(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("Create Profile: %w", err)
+	}
+
+	return created, nil
+}
+
+func (s *ProfileService) GetProfileByUserId(ctx context.Context, userID uint) (*model.ProfileDto, error) {
+	profile, err := s.repo.GetProfileByUserId(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("Get Profile By UserId: %w", err)
+	}
+	return profile, nil
+}
+
+func (s *ProfileService) UpdateProfileByUserId(ctx context.Context, userID uint, profile model.UpdateProfileRequest) (*model.ProfileDto, error) {
+	updated, err := s.repo.UpdateProfileByUserId(ctx, userID, profile)
+	if err != nil {
+		return nil, fmt.Errorf("Update Profile By UserId: %w", err)
+	}
+
+	return updated, nil
+}

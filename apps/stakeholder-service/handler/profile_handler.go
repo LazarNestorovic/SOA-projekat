@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"stakeholder_service/model"
-	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
 type ProfileHandler struct {
@@ -29,19 +26,16 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	u, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
+	id, ok := userID.(uint)
+	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "invalid profile id",
+			"error": "invalid user id",
 		})
 		return
 	}
-	id := uint(u)
 
-	profile, err := h.service.GetProfile(r.Context(), id)
+	profile, err := h.service.GetProfileByUserId(r.Context(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
@@ -66,17 +60,14 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-	u, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
+	id, ok := userID.(uint)
+	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "invalid profile id",
+			"error": "invalid user id",
 		})
 		return
 	}
-	id := uint(u)
 
 	var req model.UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,7 +78,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.service.UpdateProfile(r.Context(), id, req)
+	updated, err := h.service.UpdateProfileByUserId(r.Context(), id, req)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{

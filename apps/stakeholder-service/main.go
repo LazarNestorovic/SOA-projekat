@@ -46,6 +46,9 @@ func main() {
 	profileService := service.NewProfileService(profileRepository)
 	profileHandler := handler.NewProfileHandler(profileService)
 
+	// Injektuj profile repository u user service
+	userService.SetProfileRepository(profileRepository)
+
 	router := mux.NewRouter()
 
 	// Javne rute (bez JWT)
@@ -61,8 +64,8 @@ func main() {
 	protected.HandleFunc("/users", userHandler.GetUsers).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}/block", userHandler.BlockAccount).Methods(http.MethodPut)
 
-	protected.HandleFunc("/profile/{id}", profileHandler.GetProfile).Methods(http.MethodGet)
-	protected.HandleFunc("/profile/{id}/update", profileHandler.UpdateProfile).Methods(http.MethodPut)
+	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods(http.MethodGet)
+	protected.HandleFunc("/profile/update", profileHandler.UpdateProfile).Methods(http.MethodPut)
 
 	http.ListenAndServe(":8082", router)
 }
