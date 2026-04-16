@@ -3,6 +3,7 @@ import { blockUser, getUsers } from '../../services/stakeholderService';
 
 function AdminPanel({ token, active, isAdmin, onNotice, onError }) {
   const [users, setUsers] = useState([]);
+  const [blockingById, setBlockingById] = useState({});
 
   useEffect(() => {
     if (!active || !isAdmin) return;
@@ -20,6 +21,10 @@ function AdminPanel({ token, active, isAdmin, onNotice, onError }) {
   }, [active, isAdmin, token, onError]);
 
   const handleBlock = async (id) => {
+    if (blockingById[id]) return;
+
+    setBlockingById((prev) => ({ ...prev, [id]: true }));
+
     try {
       await blockUser(token, id);
       const data = await getUsers(token);
@@ -27,6 +32,8 @@ function AdminPanel({ token, active, isAdmin, onNotice, onError }) {
       onNotice('Account blocked.', 'success');
     } catch (error) {
       onError(error);
+    } finally {
+      setBlockingById((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -46,14 +53,32 @@ function AdminPanel({ token, active, isAdmin, onNotice, onError }) {
       </div>
 
       <div className="users">
-        {users.map((userItem) => (
-          <div className="user-row" key={userItem.id}>
-            <span>
-              {userItem.username} ({userItem.email}) | Role: {userItem.role}
-            </span>
-            <button type="button" onClick={() => handleBlock(userItem.id)}>Block</button>
-          </div>
-        ))}
+        {(users || []).map((userItem) => {
+          const role = userItem.role;
+          const isBlockableRole = role === 'tourist' || role === 'guide';
+          const isBlocked = Boolean(userItem.blocked ?? userItem.Blocked);
+          const isBlocking = Boolean(blockingById[userItem.id]);
+
+          return (
+            <div className="user-row" key={userItem.id}>
+              <span>
+                {userItem.username} ({userItem.email}) | Role: {role}
+              </span>
+
+              {isBlockableRole ? (
+                <button
+                  type="button"
+                  onClick={() => handleBlock(userItem.id)}
+                  disabled={isBlocked || isBlocking}
+                  aria-disabled={isBlocked || isBlocking}
+                  title={isBlocked ? 'This account is already blocked.' : undefined}
+                >
+                  {isBlocked ? 'Blocked' : isBlocking ? 'Blocking…' : 'Block'}
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
