@@ -30,6 +30,25 @@ services:
     networks:
       - soa_network
 
+  api_gateway:
+    build:
+      context: ./apps
+      dockerfile: api-gateway/Dockerfile
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+    networks:
+      - soa_network
+    depends_on:
+      stakeholder-service:
+        condition: service_started
+      blog-service:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+   
   auth-service:
     build:
       context: ./apps
