@@ -115,6 +115,19 @@ services:
       auth-service:
         condition: service_healthy
 
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: web
+    ports:
+      - "3000:80"
+    networks:
+      - soa_network
+    depends_on:
+      api_gateway:
+        condition: service_started
+
 networks:
   soa_network:
     driver: bridge
