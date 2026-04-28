@@ -17,7 +17,7 @@ type User struct {
 	Role      Role      `json:"role"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
-	Blocked   bool      `json: "blocked"`
+	Blocked   bool      `json:"blocked"`
 }
 
 type RegistrationRequest struct {
