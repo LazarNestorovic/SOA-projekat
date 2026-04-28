@@ -1,5 +1,54 @@
 services:
 
+  stakeholders-db:
+    image: postgres:17-alpine
+    container_name: stakeholders_db
+    restart: always
+    environment: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: stakeholders
+    ports: 
+      - "5432:5432"
+    volumes:
+      - stakeholder_data:/var/lib/postgresql/data
+    networks:
+      - soa_network
+
+  blogs-db:
+    image: postgres:17-alpine
+    container_name: blogs_db
+    restart: always
+    environment: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: blogs
+    ports: 
+      - "5433:5432"
+    volumes:
+      - blog_data:/var/lib/postgresql/data
+    networks:
+      - soa_network
+
+  api_gateway:
+    build:
+      context: ./apps
+      dockerfile: api-gateway/Dockerfile
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+    networks:
+      - soa_network
+    depends_on:
+      stakeholder-service:
+        condition: service_started
+      blog-service:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+   
   auth-service:
     build:
       context: ./apps
@@ -25,21 +74,21 @@ services:
     container_name: stakeholder_service
     ports:
       - "8082:8082"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-root}
-      DB_NAME: ${DB_NAME:-stakeholders}
-      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DB_HOST: stakeholders-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: stakeholders
+      DB_SSLMODE: disable
       SERVER_PORT: 8082
       JWT_SECRET: your-secret-key-change-this-in-production
       AUTH_SERVICE_URL: http://auth-service:8081
     networks:
       - soa_network
     depends_on:
+      stakeholders-db:
+        condition: service_started
       auth-service:
         condition: service_healthy
 
@@ -50,22 +99,26 @@ services:
     container_name: blog_service
     ports:
       - "8083:8083"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
-      DB_HOST: ${DB_HOST:-host.docker.internal}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-root}
-      DB_NAME: blog_service
+      DB_HOST: blogs-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: blogs
       SERVER_PORT: 8083
       AUTH_SERVICE_URL: http://auth-service:8081
     networks:
       - soa_network
     depends_on:
+      blogs-db:
+        condition: service_started
       auth-service:
         condition: service_healthy
 
 networks:
   soa_network:
     driver: bridge
+
+volumes:
+  stakeholder_data:
+  blog_data:

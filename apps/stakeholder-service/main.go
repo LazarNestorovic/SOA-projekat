@@ -52,12 +52,12 @@ func main() {
 	router := mux.NewRouter()
 
 	// Javne rute (bez JWT)
-	auth := router.PathPrefix("/auth").Subrouter()
+	auth := router.PathPrefix("/api/stakeholders/auth").Subrouter()
 	auth.HandleFunc("/register", userHandler.Register).Methods(http.MethodPost)
 	auth.HandleFunc("/login", userHandler.Login).Methods(http.MethodPost)
 
 	// Zaštićene rute (sa JWT middleware-om)
-	protected := router.PathPrefix("/api").Subrouter()
+	protected := router.PathPrefix("/api/stakeholders").Subrouter()
 	protected.Use(middleware.JWTMiddleware)
 	protected.HandleFunc("/me", userHandler.Me).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}", userHandler.GetUser).Methods(http.MethodGet)
