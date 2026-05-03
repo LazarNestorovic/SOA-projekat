@@ -1,5 +1,27 @@
 const { pool } = require('../config/database');
 const { marked } = require('marked');
+const axios = require('axios');
+
+const FOLLOWER_SERVICE_URL =
+	process.env.FOLLOWER_SERVICE_URL || 'http://localhost:8084';
+
+async function getAllowedAuthorIds(userId) {
+	try {
+		const response = await axios.get(
+			`${FOLLOWER_SERVICE_URL}/internal/following/${userId}?includeSelf=1`,
+		);
+		const allowed = Array.isArray(response.data?.allowed)
+			? response.data.allowed.map((x) => parseInt(x))
+			: [parseInt(userId)];
+		return allowed.filter((x) => Number.isFinite(x));
+	} catch (err) {
+		const status = err?.response?.status;
+		const message = err?.response?.data?.error;
+		throw new Error(
+			`Follower service unavailable (${status || 'no-status'}): ${message || 'error'}`,
+		);
+	}
+}
 
 async function createBlog(req, res) {
 	const { title, description, images } = req.body;
@@ -35,11 +57,19 @@ async function createBlog(req, res) {
 
 async function getBlogs(req, res) {
 	try {
+		const { user_id } = req.user;
+		const allowedAuthorIds = await getAllowedAuthorIds(user_id);
+		if (allowedAuthorIds.length === 0) {
+			return res.json([]);
+		}
+
 		const result = await pool.query(
 			`SELECT b.*,
         (SELECT COUNT(*) FROM likes WHERE blog_id = b.id) AS likes_count
        FROM blogs b
+		 WHERE b.user_id = ANY($1::int[])
        ORDER BY b.created_at DESC`,
+			[allowedAuthorIds],
 		);
 
 		const blogs = result.rows.map((blog) => ({
@@ -51,6 +81,11 @@ async function getBlogs(req, res) {
 		return res.json(blogs);
 	} catch (err) {
 		console.error(err);
+		if (String(err?.message || '').includes('Follower service unavailable')) {
+			return res
+				.status(503)
+				.json({ error: 'Follower servis nije dostupan' });
+		}
 		return res.status(500).json({ error: 'Greska pri dohvatanju blogova' });
 	}
 }
@@ -59,6 +94,9 @@ async function getBlog(req, res) {
 	const { id } = req.params;
 
 	try {
+		const { user_id } = req.user;
+		const allowedAuthorIds = await getAllowedAuthorIds(user_id);
+
 		const result = await pool.query(
 			`SELECT b.*,
         (SELECT COUNT(*) FROM likes WHERE blog_id = b.id) AS likes_count
@@ -72,6 +110,12 @@ async function getBlog(req, res) {
 		}
 
 		const blog = result.rows[0];
+		if (!allowedAuthorIds.includes(parseInt(blog.user_id))) {
+			return res
+				.status(403)
+				.json({ error: 'Nemate pristup blogovima korisnika koje ne pratite' });
+		}
+
 		blog.description_html = marked(blog.description);
 		blog.likes_count = parseInt(blog.likes_count);
 
