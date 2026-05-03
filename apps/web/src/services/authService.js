@@ -11,6 +11,6 @@ export async function login(payload) {
 }
 
 export async function getMe(token) {
-  const { data } = await stakeholderClient.get('/api/me', { headers: authHeader(token) });
+  const { data } = await stakeholderClient.get('/me', { headers: authHeader(token) });
   return data;
 }

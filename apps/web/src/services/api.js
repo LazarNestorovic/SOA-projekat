@@ -9,3 +9,10 @@ export {
   createComment,
   updateComment,
 } from './blogService';
+
+export {
+  followUser,
+  unfollowUser,
+  getFollowing,
+  getRecommendations,
+} from './followerService';

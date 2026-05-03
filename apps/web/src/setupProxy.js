@@ -2,21 +2,16 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const appConfig = require('./config/appConfig');
 
 module.exports = function setupProxy(app) {
-  app.use(
-    '/stakeholder',
-    createProxyMiddleware({
-      target: appConfig.proxy.stakeholder.target,
-      changeOrigin: true,
-      pathRewrite: { '^/stakeholder': '' },
-    }),
-  );
+  const gatewayTarget =
+    (appConfig.proxy && appConfig.proxy.gatewayTarget) ||
+    process.env.REACT_APP_GATEWAY_TARGET ||
+    'http://localhost:8080';
 
   app.use(
-    '/blog',
+    '/api',
     createProxyMiddleware({
-      target: appConfig.proxy.blog.target,
+      target: gatewayTarget,
       changeOrigin: true,
-      pathRewrite: { '^/blog': '' },
     }),
   );
 };

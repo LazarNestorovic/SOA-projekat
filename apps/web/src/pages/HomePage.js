@@ -102,7 +102,7 @@ function HomePage({ token, user, setUser, onLogout }) {
       <Routes>
         <Route
           path="profile"
-          element={<ProfilePanel token={token} active onNotice={showNotice} onError={showError} />}
+          element={<ProfilePanel token={token} user={user} active onNotice={showNotice} onError={showError} />}
         />
         <Route
           path="blog-editor"
@@ -118,7 +118,7 @@ function HomePage({ token, user, setUser, onLogout }) {
         />
         <Route
           path="/"
-          element={<ProfilePanel token={token} active onNotice={showNotice} onError={showError} />}
+          element={<ProfilePanel token={token} user={user} active onNotice={showNotice} onError={showError} />}
         />
       </Routes>
     </div>
