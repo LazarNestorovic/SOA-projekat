@@ -17,6 +17,7 @@ var routes = map[string]string{
 	"/api/blogs":        "http://blog-service:8083",
 	"/api/stakeholders": "http://stakeholder-service:8082",
 	"/api/followers":    "http://follower-service:8084",
+	"/api/tours":        "http://tour-service:8085",
 }
 
 func authMiddleware(next http.Handler) http.Handler {
@@ -114,6 +115,7 @@ func main() {
 	mux.Handle("/api/blogs/", protectedHandler)
 	mux.Handle("/api/stakeholders/", protectedHandler)
 	mux.Handle("/api/followers/", protectedHandler)
+	mux.Handle("/api/tours/", protectedHandler)
 
 	finalHandler := corsMiddleware(mux)
 

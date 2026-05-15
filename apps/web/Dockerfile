@@ -3,14 +3,16 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 ENV NODE_OPTIONS=--openssl-legacy-provider
+ENV NODE_ENV=production
+ENV CI=false
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install --legacy-peer-deps
 
 COPY public ./public
 COPY src ./src
 
-RUN npm run build
+RUN npm run build --verbose
 
 
 FROM nginx:1.27-alpine

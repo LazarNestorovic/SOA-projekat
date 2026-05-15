@@ -32,6 +32,21 @@ services:
     networks:
       - soa_network
 
+  tours-db:
+    image: postgres:17-alpine
+    container_name: tours_db
+    restart: always
+    environment: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: tours_db
+    ports: 
+      - "5435:5432"
+    volumes:
+      - tour_data:/var/lib/postgresql/data
+    networks:
+      - soa_network
+
   blogs-db:
     image: postgres:17-alpine
     container_name: blogs_db
@@ -62,6 +77,8 @@ services:
       stakeholder-service:
         condition: service_started
       blog-service:
+        condition: service_started
+      tour-service:
         condition: service_started
       auth-service:
         condition: service_healthy
@@ -105,6 +122,30 @@ services:
       - soa_network
     depends_on:
       stakeholders-db:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+
+  tour-service:
+    build:
+      context: ./apps
+      dockerfile: tour-service/Dockerfile
+    container_name: tour_service
+    restart: always
+    ports:
+      - "8085:8085"
+    environment:
+      DB_HOST: tours-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: root
+      DB_NAME: tours_db
+      SERVER_PORT: 8085
+      AUTH_SERVICE_URL: http://auth-service:8081
+    networks:
+      - soa_network
+    depends_on:
+      tours-db:
         condition: service_started
       auth-service:
         condition: service_healthy
@@ -175,3 +216,4 @@ volumes:
   stakeholder_data:
   blog_data:
   neo4j_data:
+  tour_data:
