@@ -1,17 +1,17 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'root',
-  database: process.env.DB_NAME || 'tours_db',
+	host: process.env.DB_HOST || 'localhost',
+	port: parseInt(process.env.DB_PORT || '5432'),
+	user: process.env.DB_USER || 'postgres',
+	password: process.env.DB_PASSWORD || 'root',
+	database: process.env.DB_NAME || 'tours_db',
 });
 
 async function runMigrations() {
-  const client = await pool.connect();
-  try {
-    await client.query(`
+	const client = await pool.connect();
+	try {
+		await client.query(`
       CREATE TABLE IF NOT EXISTS tours (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -46,13 +46,21 @@ async function runMigrations() {
         images TEXT[] DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS tourist_current_positions (
+        id SERIAL PRIMARY KEY,
+        tourist_id INTEGER NOT NULL UNIQUE,
+        latitude NUMERIC(10, 7) NOT NULL,
+        longitude NUMERIC(10, 7) NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
-    console.log('Tour migracije uspesno pokrenute!');
-  } catch (error) {
-    console.error('Greska pri migraciji tours baze:', error);
-  } finally {
-    client.release();
-  }
+		console.log('Tour migracije uspesno pokrenute!');
+	} catch (error) {
+		console.error('Greska pri migraciji tours baze:', error);
+	} finally {
+		client.release();
+	}
 }
 
 module.exports = { pool, runMigrations };
