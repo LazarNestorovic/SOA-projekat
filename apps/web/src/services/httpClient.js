@@ -13,6 +13,10 @@ export const followerClient = axios.create({
   baseURL: appConfig.api.followerBaseUrl,
 });
 
+export const tourClient = axios.create({
+  baseURL: appConfig.api.tourBaseUrl,
+});
+
 export function authHeader(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
