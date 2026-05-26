@@ -68,6 +68,16 @@ function HomePage({ token, user, setUser, onLogout }) {
     }
   }, [token]);
 
+  const refreshUserBalance = useCallback(async () => {
+    try {
+      const me = await getMe(token);
+      setUser(me);
+      localStorage.setItem('soa_user', JSON.stringify(me));
+    } catch {
+      // tiho ignorisi
+    }
+  }, [token, setUser]);
+
   useEffect(() => {
     if (!token) {
       navigate('/login');
@@ -158,7 +168,7 @@ function HomePage({ token, user, setUser, onLogout }) {
               onNotice={showNotice}
               onError={showError}
               active={activeSection === 'tour-cart'}
-              onPurchased={refreshCartCount}
+              onPurchased={() => { refreshCartCount(); refreshUserBalance(); }}
             />
           }
         />
