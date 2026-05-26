@@ -63,9 +63,13 @@ func main() {
 	protected.HandleFunc("/users/{id}", userHandler.GetUser).Methods(http.MethodGet)
 	protected.HandleFunc("/users", userHandler.GetUsers).Methods(http.MethodGet)
 	protected.HandleFunc("/users/{id}/block", userHandler.BlockAccount).Methods(http.MethodPut)
+	protected.HandleFunc("/users/{id}/topup", userHandler.TopUpBalance).Methods(http.MethodPost)
 
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods(http.MethodGet)
 	protected.HandleFunc("/profile/update", profileHandler.UpdateProfile).Methods(http.MethodPut)
+
+	// Interni endpoint za tour-service (bez JWT middleware-a)
+	router.HandleFunc("/internal/balance/deduct", userHandler.DeductBalanceInternal).Methods(http.MethodPost)
 
 	http.ListenAndServe(":8082", router)
 }

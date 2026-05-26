@@ -7,8 +7,12 @@ import ProfilePanel from '../components/profile/ProfilePanel';
 import BlogEditorPanel from '../components/blog/BlogEditorPanel';
 import BlogFeedPanel from '../components/blog/BlogFeedPanel';
 import TourEditorPanel from '../components/tour/TourEditorPanel';
+import TourBrowsePanel from '../components/tour/TourBrowsePanel';
+import ShoppingCartPanel from '../components/tour/ShoppingCartPanel';
+import PurchasedToursPanel from '../components/tour/PurchasedToursPanel';
 import AdminPanel from '../components/admin/AdminPanel';
 import { getMe } from '../services/authService';
+import { getCart } from '../services/tourService';
 
 function HomePage({ token, user, setUser, onLogout }) {
   const navigate = useNavigate();
@@ -18,11 +22,13 @@ function HomePage({ token, user, setUser, onLogout }) {
     const parts = pathname.split('/').filter(Boolean);
     if (parts[0] !== 'home') return 'profile';
     const section = parts[1] || 'profile';
-    return ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'admin'].includes(section) ? section : 'profile';
+    const valid = ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'tour-browse', 'tour-cart', 'tour-purchased', 'admin'];
+    return valid.includes(section) ? section : 'profile';
   };
 
   const [toasts, setToasts] = useState([]);
   const [activeSection, setActiveSection] = useState(() => sectionFromPathname(location.pathname));
+  const [cartCount, setCartCount] = useState(0);
   const toastTimeoutIds = React.useRef([]);
 
   const dismissToast = useCallback((id) => {
@@ -52,6 +58,16 @@ function HomePage({ token, user, setUser, onLogout }) {
     };
   }, []);
 
+  const refreshCartCount = useCallback(async () => {
+    if (!token) return;
+    try {
+      const cart = await getCart(token);
+      setCartCount(cart?.items?.length || 0);
+    } catch {
+      // korpa se tiho ignorise ako nije dostupna
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) {
       navigate('/login');
@@ -70,7 +86,8 @@ function HomePage({ token, user, setUser, onLogout }) {
     };
 
     refreshSession();
-  }, [token, setUser, onLogout, navigate]);
+    refreshCartCount();
+  }, [token, setUser, onLogout, navigate, refreshCartCount]);
 
   useEffect(() => {
     setActiveSection(sectionFromPathname(location.pathname));
@@ -83,6 +100,9 @@ function HomePage({ token, user, setUser, onLogout }) {
       'blog-editor': '/home/blog-editor',
       'blog-feed': '/home/blog-feed',
       'tour-editor': '/home/tour-editor',
+      'tour-browse': '/home/tour-browse',
+      'tour-cart': '/home/tour-cart',
+      'tour-purchased': '/home/tour-purchased',
       admin: '/home/admin',
     };
     navigate(routeMap[section] || '/home');
@@ -99,7 +119,7 @@ function HomePage({ token, user, setUser, onLogout }) {
     <div className="page">
       <AppHeader user={user} onLogout={handleHeaderLogout} />
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
-      <SectionNav activeSection={activeSection} onChange={handleNavigation} />
+      <SectionNav activeSection={activeSection} onChange={handleNavigation} cartCount={cartCount} />
 
       <Routes>
         <Route
@@ -117,6 +137,40 @@ function HomePage({ token, user, setUser, onLogout }) {
         <Route
           path="tour-editor"
           element={<TourEditorPanel token={token} user={user} onNotice={showNotice} onError={showError} />}
+        />
+        <Route
+          path="tour-browse"
+          element={
+            <TourBrowsePanel
+              token={token}
+              onCartUpdate={refreshCartCount}
+              onNotice={showNotice}
+              onError={showError}
+              active={activeSection === 'tour-browse'}
+            />
+          }
+        />
+        <Route
+          path="tour-cart"
+          element={
+            <ShoppingCartPanel
+              token={token}
+              onNotice={showNotice}
+              onError={showError}
+              active={activeSection === 'tour-cart'}
+              onPurchased={refreshCartCount}
+            />
+          }
+        />
+        <Route
+          path="tour-purchased"
+          element={
+            <PurchasedToursPanel
+              token={token}
+              onError={showError}
+              active={activeSection === 'tour-purchased'}
+            />
+          }
         />
         <Route
           path="admin"

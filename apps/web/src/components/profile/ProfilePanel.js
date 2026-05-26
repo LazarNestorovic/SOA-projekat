@@ -110,6 +110,27 @@ function ProfilePanel({ token, user, active, onNotice, onError }) {
       <div className="panel-head">
         <h2>My Profile</h2>
       </div>
+
+      {user?.role === 'tourist' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16,
+          background: 'linear-gradient(120deg, rgba(13,148,136,0.08), rgba(13,148,136,0.03))',
+          border: '1px solid rgba(13,148,136,0.2)', borderRadius: 14,
+          padding: '14px 18px', marginBottom: 18,
+        }}>
+          <div style={{ fontSize: 32 }}>💰</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0a6f66' }}>
+              Moj balans
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#0d9488', letterSpacing: '-0.02em' }}>
+              €{Number(user?.balance ?? 0).toFixed(2)}
+            </div>
+            <div className="meta">Balans puni administrator</div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSave}>
         <input placeholder="First Name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
         <input placeholder="Last Name" value={profile.surname} onChange={(e) => setProfile({ ...profile, surname: e.target.value })} />

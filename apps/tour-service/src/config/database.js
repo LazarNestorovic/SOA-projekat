@@ -54,6 +54,32 @@ async function runMigrations() {
         longitude NUMERIC(10, 7) NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS shopping_carts (
+        id SERIAL PRIMARY KEY,
+        tourist_id INTEGER NOT NULL UNIQUE,
+        total_price NUMERIC DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS order_items (
+        id SERIAL PRIMARY KEY,
+        cart_id INTEGER REFERENCES shopping_carts(id) ON DELETE CASCADE,
+        tour_id INTEGER NOT NULL,
+        tour_name VARCHAR(255) NOT NULL,
+        price NUMERIC NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(cart_id, tour_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS tour_purchase_tokens (
+        id SERIAL PRIMARY KEY,
+        tourist_id INTEGER NOT NULL,
+        tour_id INTEGER NOT NULL,
+        token VARCHAR(255) NOT NULL UNIQUE,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tourist_id, tour_id)
+      );
     `);
 		console.log('Tour migracije uspesno pokrenute!');
 	} catch (error) {

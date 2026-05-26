@@ -207,6 +207,77 @@ func (h *UserHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *UserHandler) TopUpBalance(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userRole := r.Context().Value("role")
+	roleStr, ok := userRole.(string)
+	if !ok || roleStr != "admin" {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Samo admin može puniti balans"})
+		return
+	}
+
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći ID korisnika"})
+		return
+	}
+
+	var body struct {
+		Amount float64 `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Amount <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Iznos mora biti pozitivan broj"})
+		return
+	}
+
+	newBalance, err := h.userService.TopUpBalance(r.Context(), uint(id), body.Amount)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Balans uspešno napunjen",
+		"balance": newBalance,
+	})
+}
+
+func (h *UserHandler) DeductBalanceInternal(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var body struct {
+		UserID uint    `json:"user_id"`
+		Amount float64 `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći zahtev"})
+		return
+	}
+
+	newBalance, err := h.userService.DeductBalance(r.Context(), body.UserID, body.Amount)
+	if err != nil {
+		if err.Error() == "insufficient_balance" {
+			w.WriteHeader(http.StatusPaymentRequired)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Nedovoljan balans"})
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		}
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"balance": newBalance,
+	})
+}
+
 func (h *UserHandler) BlockAccount(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("userID")
 	if userID == nil {

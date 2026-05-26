@@ -64,3 +64,38 @@ export async function updateCurrentPosition(token, payload) {
 	});
 	return data;
 }
+
+export async function updateTourStatus(token, tourId, status) {
+	const { data } = await tourClient.patch(`/${tourId}/status`, { status }, { headers: authHeader(token) });
+	return data;
+}
+
+export async function getPublishedTours(token) {
+	const { data } = await tourClient.get('/published', { headers: authHeader(token) });
+	return data;
+}
+
+export async function getPurchasedTours(token) {
+	const { data } = await tourClient.get('/purchased', { headers: authHeader(token) });
+	return data;
+}
+
+export async function getCart(token) {
+	const { data } = await tourClient.get('/cart', { headers: authHeader(token) });
+	return data;
+}
+
+export async function addToCart(token, tourId) {
+	const { data } = await tourClient.post(`/cart/add/${tourId}`, {}, { headers: authHeader(token) });
+	return data;
+}
+
+export async function removeFromCart(token, tourId) {
+	const { data } = await tourClient.delete(`/cart/remove/${tourId}`, { headers: authHeader(token) });
+	return data;
+}
+
+export async function checkout(token) {
+	const { data } = await tourClient.post('/cart/checkout', {}, { headers: authHeader(token) });
+	return data;
+}

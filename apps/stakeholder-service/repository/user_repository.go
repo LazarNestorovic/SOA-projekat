@@ -41,7 +41,7 @@ func (r *UserRepository) Create(user *model.User) error {
 // GetByEmail pronađi korisnika po mejlu
 func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at
+		SELECT id, username, email, password, role, created_at, balance
 		FROM users
 		WHERE email = $1
 	`
@@ -54,6 +54,7 @@ func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 		&user.Password,
 		&user.Role,
 		&user.CreatedAt,
+		&user.Balance,
 	)
 
 	if err == sql.ErrNoRows {
@@ -70,7 +71,7 @@ func (r *UserRepository) GetByEmail(email string) (*model.User, error) {
 // GetByUsername pronađi korisnika po korisnčkom imenu
 func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at
+		SELECT id, username, email, password, role, created_at, balance
 		FROM users
 		WHERE username = $1
 	`
@@ -83,6 +84,7 @@ func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 		&user.Password,
 		&user.Role,
 		&user.CreatedAt,
+		&user.Balance,
 	)
 
 	if err == sql.ErrNoRows {
@@ -99,7 +101,7 @@ func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 // GetByID pronađi korisnika po ID-u
 func (r *UserRepository) GetByID(id uint) (*model.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at
+		SELECT id, username, email, password, role, created_at, balance
 		FROM users
 		WHERE id = $1
 	`
@@ -112,6 +114,7 @@ func (r *UserRepository) GetByID(id uint) (*model.User, error) {
 		&user.Password,
 		&user.Role,
 		&user.CreatedAt,
+		&user.Balance,
 	)
 
 	if err == sql.ErrNoRows {
@@ -150,7 +153,7 @@ func (r *UserRepository) IsUsernameExists(username string) (bool, error) {
 // GetAll vraća sve korisnike iz baze
 func (r *UserRepository) GetAll() ([]*model.User, error) {
 	query := `
-		SELECT id, username, email, password, role, created_at, blocked
+		SELECT id, username, email, password, role, created_at, blocked, balance
 		FROM users
 		ORDER BY id
 	`
@@ -172,6 +175,7 @@ func (r *UserRepository) GetAll() ([]*model.User, error) {
 			&user.Role,
 			&user.CreatedAt,
 			&user.Blocked,
+			&user.Balance,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("greška pri čitanju korisnika: %w", err)
@@ -184,6 +188,32 @@ func (r *UserRepository) GetAll() ([]*model.User, error) {
 	}
 
 	return users, nil
+}
+
+func (r *UserRepository) TopUpBalance(ctx context.Context, id uint, amount float64) (float64, error) {
+	var newBalance float64
+	err := r.db.QueryRowContext(ctx,
+		`UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance`,
+		amount, id,
+	).Scan(&newBalance)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("korisnik nije pronađen")
+	}
+	return newBalance, err
+}
+
+func (r *UserRepository) DeductBalance(ctx context.Context, id uint, amount float64) (float64, error) {
+	var newBalance float64
+	err := r.db.QueryRowContext(ctx,
+		`UPDATE users SET balance = balance - $1
+		 WHERE id = $2 AND balance >= $1
+		 RETURNING balance`,
+		amount, id,
+	).Scan(&newBalance)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("insufficient_balance")
+	}
+	return newBalance, err
 }
 
 func (r *UserRepository) BlockAccount(ctx context.Context, id uint) error {

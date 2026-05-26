@@ -3,6 +3,7 @@ const cors = require('cors');
 const { runMigrations } = require('./config/database');
 const { authenticate } = require('./middleware/auth');
 const tourController = require('./controllers/tourController');
+const cartController = require('./controllers/cartController');
 
 const app = express();
 
@@ -17,7 +18,9 @@ app.get('/health', (req, res) => {
 	res.status(200).json({ status: 'healthy', service: 'tour-service' });
 });
 
+// Ture za vodiče/admin
 app.post('/api/tours', authenticate, tourController.createTour);
+app.patch('/api/tours/:id/status', authenticate, tourController.updateTourStatus);
 app.get('/api/tours/my', authenticate, tourController.getMyTours);
 app.get('/api/tours/all', authenticate, tourController.getAllTours);
 app.post('/api/tours/:id/key-points', authenticate, tourController.addKeyPoint);
@@ -43,6 +46,16 @@ app.put(
 	authenticate,
 	tourController.upsertCurrentPosition,
 );
+
+// Browsing i kupovina tura (turisti)
+app.get('/api/tours/published', authenticate, cartController.getPublishedTours);
+app.get('/api/tours/purchased', authenticate, cartController.getPurchasedTours);
+
+// Korpa
+app.get('/api/tours/cart', authenticate, cartController.getCart);
+app.post('/api/tours/cart/add/:tourId', authenticate, cartController.addToCart);
+app.delete('/api/tours/cart/remove/:tourId', authenticate, cartController.removeFromCart);
+app.post('/api/tours/cart/checkout', authenticate, cartController.checkout);
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
