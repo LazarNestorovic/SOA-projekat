@@ -1,5 +1,4 @@
 services:
-
   neo4j:
     image: neo4j:5.26
     container_name: neo4j
@@ -10,8 +9,8 @@ services:
       NEO4J_server_memory_heap_initial__size: 256M
       NEO4J_server_memory_heap_max__size: 512M
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - '7474:7474'
+      - '7687:7687'
     volumes:
       - neo4j_data:/data
     networks:
@@ -26,7 +25,7 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: stakeholders
     ports:
-      - "5434:5432"
+      - '5434:5432'
     volumes:
       - stakeholder_data:/var/lib/postgresql/data
     networks:
@@ -41,7 +40,7 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: tours_db
     ports:
-      - "5435:5432"
+      - '5435:5432'
     volumes:
       - tour_data:/var/lib/postgresql/data
     networks:
@@ -56,7 +55,7 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: blogs
     ports:
-      - "5433:5432"
+      - '5433:5432'
     volumes:
       - blog_data:/var/lib/postgresql/data
     networks:
@@ -68,10 +67,11 @@ services:
       dockerfile: api-gateway/Dockerfile
     container_name: api_gateway
     ports:
-      - "8080:8080"
+      - '8080:8080'
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8081       # zadržano (healthcheck)
-      AUTH_SERVICE_GRPC_URL: auth-service:9091         # gRPC ValidateToken
+      AUTH_SERVICE_URL: http://auth-service:8081 # zadržano (healthcheck)
+      AUTH_SERVICE_GRPC_URL: auth-service:9091 # gRPC ValidateToken
+      TOUR_SERVICE_GRPC_URL: tour-service:9095 # gRPC CreateTour/UpdateTourStatus
     networks:
       - soa_network
     depends_on:
@@ -90,8 +90,8 @@ services:
       dockerfile: auth-service/Dockerfile
     container_name: auth_service
     ports:
-      - "8081:8081"   # HTTP
-      - "9091:9091"   # gRPC
+      - '8081:8081' # HTTP
+      - '9091:9091' # gRPC
     environment:
       SERVER_PORT: 8081
       GRPC_PORT: 9091
@@ -99,7 +99,7 @@ services:
     networks:
       - soa_network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8081/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,8 +110,8 @@ services:
       dockerfile: stakeholder-service/Dockerfile
     container_name: stakeholder_service
     ports:
-      - "8082:8082"   # HTTP
-      - "9092:9092"   # gRPC
+      - '8082:8082' # HTTP
+      - '9092:9092' # gRPC
     environment:
       DB_HOST: stakeholders-db
       DB_PORT: 5432
@@ -138,7 +138,8 @@ services:
     container_name: tour_service
     restart: always
     ports:
-      - "8085:8085"
+      - '8085:8085'
+      - '9095:9095'
     environment:
       DB_HOST: tours-db
       DB_PORT: 5432
@@ -146,9 +147,10 @@ services:
       DB_PASSWORD: root
       DB_NAME: tours_db
       SERVER_PORT: 8085
+      GRPC_PORT: 9095
       AUTH_SERVICE_URL: http://auth-service:8081
-      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:8082  # zadržano
-      STAKEHOLDER_GRPC_URL: stakeholder-service:9092            # gRPC DeductBalance
+      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:8082 # zadržano
+      STAKEHOLDER_GRPC_URL: stakeholder-service:9092 # gRPC DeductBalance
     networks:
       - soa_network
     depends_on:
@@ -163,7 +165,7 @@ services:
       dockerfile: blog-service/Dockerfile
     container_name: blog_service
     ports:
-      - "8083:8083"
+      - '8083:8083'
     environment:
       DB_HOST: blogs-db
       DB_PORT: 5432
@@ -187,7 +189,7 @@ services:
       dockerfile: follower-service/Dockerfile
     container_name: follower_service
     ports:
-      - "8084:8084"
+      - '8084:8084'
     environment:
       SERVER_PORT: 8084
       AUTH_SERVICE_URL: http://auth-service:8081
@@ -208,7 +210,7 @@ services:
       dockerfile: Dockerfile
     container_name: web
     ports:
-      - "3000:80"
+      - '3000:80'
     networks:
       - soa_network
     depends_on:

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package tour;
+
+option go_package = "api-gateway/pb";
+
+service TourService {
+  rpc CreateTour(CreateTourRequest) returns (TourResponse);
+  rpc UpdateTourStatus(UpdateTourStatusRequest) returns (TourResponse);
+}
+
+message CreateTourRequest {
+  uint32 user_id = 1;
+  string title = 2;
+  string description = 3;
+  string difficulty = 4;
+  repeated string tags = 5;
+  double price = 6;
+  map<string, uint32> transport_times = 7;
+}
+
+message UpdateTourStatusRequest {
+  uint32 id = 1;
+  uint32 user_id = 2;
+  string role = 3;
+  string status = 4;
+}
+
+message TourResponse {
+  uint32 id = 1;
+  uint32 user_id = 2;
+  string title = 3;
+  string description = 4;
+  string difficulty = 5;
+  repeated string tags = 6;
+  string status = 7;
+  double price = 8;
+  double distance_km = 9;
+  map<string, uint32> transport_times = 10;
+  string published_at = 11;
+  string archived_at = 12;
+  string created_at = 13;
+}
