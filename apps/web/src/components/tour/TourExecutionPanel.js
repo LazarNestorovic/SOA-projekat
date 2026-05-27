@@ -70,6 +70,7 @@ function TourExecutionPanel({ token, user, onNotice, onError }) {
 
   const [completedPoints, setCompletedPoints] = useState([]);
   const [tourKeyPoints, setTourKeyPoints] = useState([]);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
 
   // ─── Dohvati kupljene ture pri mount-u ───────────────────────────────────
   useEffect(() => {
@@ -200,6 +201,47 @@ function TourExecutionPanel({ token, user, onNotice, onError }) {
     return tourKeyPoints.find((kp) => !completedPoints.some((c) => c.id === kp.id)) || null;
   }, [tourKeyPoints, completedPoints]);
 
+  // ─── Ruta po putevima do sledeće ključne tačke (OSRM) ────────────────────
+  useEffect(() => {
+    if (!nextKeyPoint || !activeSession) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchRoute = async () => {
+      try {
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${currentLon},${currentLat};${nextKeyPoint.longitude},${nextKeyPoint.latitude}` +
+          `?overview=full&geometries=geojson`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        if (data.routes && data.routes.length > 0) {
+          // GeoJSON vraća [lon, lat] — Leaflet očekuje [lat, lon]
+          const coords = data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+          setRouteCoordinates(coords);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Greška pri dohvatanju rute (OSRM):', err);
+        // Fallback: prava linija ako OSRM nije dostupan
+        setRouteCoordinates([
+          [currentLat, currentLon],
+          [nextKeyPoint.latitude, nextKeyPoint.longitude],
+        ]);
+      }
+    };
+
+    fetchRoute();
+    return () => { cancelled = true; };
+  }, [currentLat, currentLon, nextKeyPoint, activeSession]);
+
   // ─── Ekran: tura završena ─────────────────────────────────────────────────
   if (activeSession && activeSession.status === 'completed') {
     return (
@@ -293,13 +335,10 @@ function TourExecutionPanel({ token, user, onNotice, onError }) {
               );
             })}
 
-            {/* Putanja do prve sledeće nedosegnute tačke */}
-            {nextKeyPoint && (
+            {/* Ruta po putevima do sledeće nedosegnute tačke (OSRM) */}
+            {routeCoordinates.length > 1 && (
               <Polyline
-                positions={[
-                  [currentLat, currentLon],
-                  [nextKeyPoint.latitude, nextKeyPoint.longitude],
-                ]}
+                positions={routeCoordinates}
                 color="blue"
                 dashArray="10, 10"
                 weight={3}
