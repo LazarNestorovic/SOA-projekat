@@ -26,6 +26,14 @@ function AppHeader({ user, onLogout }) {
 					<p className="session-user">
 						<strong>{user.username}</strong> ({user.role})
 					</p>
+					{user.role === 'tourist' && (
+						<p style={{ margin: 0, fontSize: '14px' }}>
+							<span className="session-label">Balans: </span>
+							<strong style={{ color: '#0d9488' }}>
+								€{Number(user.balance ?? 0).toFixed(2)}
+							</strong>
+						</p>
+					)}
 					{['author', 'admin', 'guide'].includes(user.role) && (
 						<button
 							type="button"

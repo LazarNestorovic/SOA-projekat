@@ -1,28 +1,57 @@
 const { pool } = require('../config/database');
 
 const createTour = async (req, res) => {
-	const { title, description, difficulty, tags } = req.body;
+	const { title, description, difficulty, tags, price } = req.body;
 	const userId = req.user.user_id;
 
 	if (!title || !description || !difficulty) {
 		return res.status(400).json({ error: 'Naslov, opis i težina su obavezni' });
 	}
 
-	const status = 'draft';
-	const price = 0;
+	const parsedPrice = Math.max(0, parseFloat(price) || 0);
 	const tourTags = tags && Array.isArray(tags) ? tags : [];
 
 	try {
 		const result = await pool.query(
 			`INSERT INTO tours (user_id, title, description, difficulty, tags, status, price)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-			[userId, title, description, difficulty, tourTags, status, price],
+       VALUES ($1, $2, $3, $4, $5, 'draft', $6) RETURNING *`,
+			[userId, title, description, difficulty, tourTags, parsedPrice],
 		);
 
 		res.status(201).json(result.rows[0]);
 	} catch (error) {
 		console.error('Greška pri kreiranju ture:', error);
 		res.status(500).json({ error: 'Serverska greška pri kreiranju ture' });
+	}
+};
+
+const updateTourStatus = async (req, res) => {
+	const { id } = req.params;
+	const { status } = req.body;
+	const userId = req.user.user_id;
+
+	const allowed = ['draft', 'published', 'archived'];
+	if (!allowed.includes(status)) {
+		return res.status(400).json({ error: 'Nevalidan status' });
+	}
+
+	try {
+		const tourQuery = await pool.query('SELECT user_id FROM tours WHERE id = $1', [id]);
+		if (tourQuery.rows.length === 0) {
+			return res.status(404).json({ error: 'Tura nije pronađena' });
+		}
+		if (tourQuery.rows[0].user_id !== userId && req.user.role !== 'admin') {
+			return res.status(403).json({ error: 'Nemate pravo da menjate ovu turu' });
+		}
+
+		const result = await pool.query(
+			'UPDATE tours SET status = $1 WHERE id = $2 RETURNING *',
+			[status, id],
+		);
+		res.status(200).json(result.rows[0]);
+	} catch (error) {
+		console.error('Greška pri promeni statusa:', error);
+		res.status(500).json({ error: 'Serverska greška pri promeni statusa' });
 	}
 };
 
@@ -359,6 +388,7 @@ const upsertCurrentPosition = async (req, res) => {
 
 module.exports = {
 	createTour,
+	updateTourStatus,
 	getMyTours,
 	getAllTours,
 	addKeyPoint,

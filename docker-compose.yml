@@ -142,6 +142,7 @@ services:
       DB_NAME: tours_db
       SERVER_PORT: 8085
       AUTH_SERVICE_URL: http://auth-service:8081
+      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:8082
     networks:
       - soa_network
     depends_on:

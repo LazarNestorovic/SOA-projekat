@@ -165,13 +165,20 @@ func isAllowedRole(role model.Role) bool {
 }
 
 func (s *UserService) BlockAccount(ctx context.Context, id uint) error {
-	//Proveriti da li account postoji
-	//Zatim proveriti da li je account vec blokiran
-
 	err := s.userRepo.BlockAccount(ctx, id)
 	if err != nil {
 		return fmt.Errorf("Block Account: %w", err)
 	}
-
 	return nil
+}
+
+func (s *UserService) TopUpBalance(ctx context.Context, id uint, amount float64) (float64, error) {
+	if amount <= 0 {
+		return 0, fmt.Errorf("iznos mora biti pozitivan")
+	}
+	return s.userRepo.TopUpBalance(ctx, id, amount)
+}
+
+func (s *UserService) DeductBalance(ctx context.Context, id uint, amount float64) (float64, error) {
+	return s.userRepo.DeductBalance(ctx, id, amount)
 }

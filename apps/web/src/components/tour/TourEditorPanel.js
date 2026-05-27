@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
 	createTour,
+	updateTourStatus,
 	getMyTours,
 	getAllTours,
 	addKeyPointToTour,
@@ -86,6 +87,8 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 	const [description, setDescription] = useState('');
 	const [difficulty, setDifficulty] = useState('');
 	const [tagsStr, setTagsStr] = useState('');
+	const [price, setPrice] = useState('');
+	const [statusChanging, setStatusChanging] = useState(null);
 
 	const [pendingKPs, setPendingKPs] = useState([]);
 	const [pendingRoutePositions, setPendingRoutePositions] = useState(null);
@@ -441,6 +444,7 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 				description: description.trim(),
 				difficulty,
 				tags,
+				price: parseFloat(price) || 0,
 			});
 			for (const kp of pendingKPs) {
 				await addKeyPointToTour(token, tour.id, {
@@ -456,6 +460,7 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 			setDescription('');
 			setDifficulty('');
 			setTagsStr('');
+			setPrice('');
 			setPendingKPs([]);
 			setPickedPos(null);
 			fetchMyTours();
@@ -464,6 +469,20 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 			onError(err);
 		} finally {
 			setSubmitting(false);
+		}
+	};
+
+	const handleChangeStatus = async (tourId, newStatus) => {
+		setStatusChanging(tourId);
+		try {
+			await updateTourStatus(token, tourId, newStatus);
+			const label = newStatus === 'published' ? 'objavljena' : newStatus === 'archived' ? 'arhivirana' : 'vraćena na draft';
+			onNotice(`Tura je uspešno ${label}.`, 'success');
+			fetchMyTours();
+		} catch (err) {
+			onError(err);
+		} finally {
+			setStatusChanging(null);
 		}
 	};
 
@@ -579,6 +598,14 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 							placeholder="Tagovi (zarezom odvojeni)"
 							value={tagsStr}
 							onChange={(e) => setTagsStr(e.target.value)}
+						/>
+						<input
+							type="number"
+							placeholder="Cena (€) — ostavi 0 za besplatno"
+							value={price}
+							min="0"
+							step="0.01"
+							onChange={(e) => setPrice(e.target.value)}
 						/>
 
 						<div style={{ marginTop: '20px' }}>
@@ -854,6 +881,7 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 												display: 'flex',
 												gap: '8px',
 												flexWrap: 'wrap',
+												alignItems: 'center',
 											}}>
 											<button
 												type="button"
@@ -869,6 +897,39 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 												style={{ whiteSpace: 'nowrap' }}>
 												+ Dodaj tačku na turu
 											</button>
+											{tour.status !== 'published' && tour.status !== 'archived' && (
+												<button
+													type="button"
+													disabled={statusChanging === tour.id}
+													onClick={() => handleChangeStatus(tour.id, 'published')}
+													style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#10b981,#059669)' }}>
+													{statusChanging === tour.id ? '...' : 'Objavi turu'}
+												</button>
+											)}
+											{tour.status === 'published' && (
+												<>
+													<span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>✓ Objavljena</span>
+													<button
+														type="button"
+														disabled={statusChanging === tour.id}
+														onClick={() => handleChangeStatus(tour.id, 'archived')}
+														style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#6b7280,#4b5563)' }}>
+														{statusChanging === tour.id ? '...' : 'Arhiviraj'}
+													</button>
+												</>
+											)}
+											{tour.status === 'archived' && (
+												<>
+													<span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 700 }}>Arhivirana</span>
+													<button
+														type="button"
+														disabled={statusChanging === tour.id}
+														onClick={() => handleChangeStatus(tour.id, 'draft')}
+														style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#f59e0b,#d97706)' }}>
+														{statusChanging === tour.id ? '...' : 'Vrati na draft'}
+													</button>
+												</>
+											)}
 										</div>
 
 										{tour.key_points?.length > 0 && (

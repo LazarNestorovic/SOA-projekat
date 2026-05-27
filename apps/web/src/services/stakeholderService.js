@@ -19,3 +19,8 @@ export async function updateProfile(token, payload) {
   const { data } = await stakeholderClient.put('/profile/update', payload, { headers: authHeader(token) });
   return data;
 }
+
+export async function topUpBalance(token, userId, amount) {
+  const { data } = await stakeholderClient.post(`/users/${userId}/topup`, { amount }, { headers: authHeader(token) });
+  return data;
+}
