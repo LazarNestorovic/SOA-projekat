@@ -5,6 +5,7 @@ const sections = [
   { key: 'blog-editor', label: 'Create Blog' },
   { key: 'blog-feed', label: 'Blog Feed' },
   { key: 'tour-editor', label: 'Tours' },
+  { key: 'tour-play', label: 'Play Tour' },
   { key: 'admin', label: 'Admin' },
 ];
 

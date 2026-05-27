@@ -7,6 +7,7 @@ import ProfilePanel from '../components/profile/ProfilePanel';
 import BlogEditorPanel from '../components/blog/BlogEditorPanel';
 import BlogFeedPanel from '../components/blog/BlogFeedPanel';
 import TourEditorPanel from '../components/tour/TourEditorPanel';
+import TourExecutionPanel from '../components/tour/TourExecutionPanel';
 import AdminPanel from '../components/admin/AdminPanel';
 import { getMe } from '../services/authService';
 
@@ -18,7 +19,7 @@ function HomePage({ token, user, setUser, onLogout }) {
     const parts = pathname.split('/').filter(Boolean);
     if (parts[0] !== 'home') return 'profile';
     const section = parts[1] || 'profile';
-    return ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'admin'].includes(section) ? section : 'profile';
+    return ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'tour-play', 'admin'].includes(section) ? section : 'profile';
   };
 
   const [toasts, setToasts] = useState([]);
@@ -83,6 +84,7 @@ function HomePage({ token, user, setUser, onLogout }) {
       'blog-editor': '/home/blog-editor',
       'blog-feed': '/home/blog-feed',
       'tour-editor': '/home/tour-editor',
+      'tour-play': '/home/tour-play',
       admin: '/home/admin',
     };
     navigate(routeMap[section] || '/home');
@@ -117,6 +119,10 @@ function HomePage({ token, user, setUser, onLogout }) {
         <Route
           path="tour-editor"
           element={<TourEditorPanel token={token} user={user} onNotice={showNotice} onError={showError} />}
+        />
+        <Route
+          path="tour-play"
+          element={<TourExecutionPanel token={token} user={user} onNotice={showNotice} onError={showError} />}
         />
         <Route
           path="admin"

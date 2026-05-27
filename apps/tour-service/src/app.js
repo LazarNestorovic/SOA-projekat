@@ -3,6 +3,7 @@ const cors = require('cors');
 const { runMigrations } = require('./config/database');
 const { authenticate } = require('./middleware/auth');
 const tourController = require('./controllers/tourController');
+const tourExecutionController = require('./controllers/tourExecutionController');
 
 const app = express();
 
@@ -43,6 +44,13 @@ app.put(
 	authenticate,
 	tourController.upsertCurrentPosition,
 );
+
+// Executions and Purchases
+app.post("/api/tours/:id/purchase", authenticate, tourExecutionController.purchaseTour);
+app.post("/api/tours/:id/executions", authenticate, tourExecutionController.startTour);
+app.put("/api/tours/executions/:executionId/status", authenticate, tourExecutionController.checkStatus);
+app.put("/api/tours/executions/:executionId/complete", authenticate, tourExecutionController.completeTour);
+app.put("/api/tours/executions/:executionId/abandon", authenticate, tourExecutionController.abandonTour);
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
