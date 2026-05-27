@@ -10,6 +10,7 @@ import TourEditorPanel from '../components/tour/TourEditorPanel';
 import TourBrowsePanel from '../components/tour/TourBrowsePanel';
 import ShoppingCartPanel from '../components/tour/ShoppingCartPanel';
 import PurchasedToursPanel from '../components/tour/PurchasedToursPanel';
+import TourExecutionPanel from '../components/tour/TourExecutionPanel';
 import AdminPanel from '../components/admin/AdminPanel';
 import { getMe } from '../services/authService';
 import { getCart } from '../services/tourService';
@@ -22,7 +23,7 @@ function HomePage({ token, user, setUser, onLogout }) {
     const parts = pathname.split('/').filter(Boolean);
     if (parts[0] !== 'home') return 'profile';
     const section = parts[1] || 'profile';
-    const valid = ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'tour-browse', 'tour-cart', 'tour-purchased', 'admin'];
+    const valid = ['profile', 'blog-editor', 'blog-feed', 'tour-editor', 'tour-browse', 'tour-cart', 'tour-purchased', 'tour-play', 'admin'];
     return valid.includes(section) ? section : 'profile';
   };
 
@@ -113,6 +114,7 @@ function HomePage({ token, user, setUser, onLogout }) {
       'tour-browse': '/home/tour-browse',
       'tour-cart': '/home/tour-cart',
       'tour-purchased': '/home/tour-purchased',
+      'tour-play': '/home/tour-play',
       admin: '/home/admin',
     };
     navigate(routeMap[section] || '/home');
@@ -181,6 +183,10 @@ function HomePage({ token, user, setUser, onLogout }) {
               active={activeSection === 'tour-purchased'}
             />
           }
+        />
+        <Route
+          path="tour-play"
+          element={<TourExecutionPanel token={token} user={user} onNotice={showNotice} onError={showError} />}
         />
         <Route
           path="admin"

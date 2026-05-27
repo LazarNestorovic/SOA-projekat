@@ -4,6 +4,7 @@ const { runMigrations } = require('./config/database');
 const { authenticate } = require('./middleware/auth');
 const tourController = require('./controllers/tourController');
 const cartController = require('./controllers/cartController');
+const tourExecutionController = require('./controllers/tourExecutionController');
 
 const app = express();
 
@@ -56,6 +57,13 @@ app.get('/api/tours/cart', authenticate, cartController.getCart);
 app.post('/api/tours/cart/add/:tourId', authenticate, cartController.addToCart);
 app.delete('/api/tours/cart/remove/:tourId', authenticate, cartController.removeFromCart);
 app.post('/api/tours/cart/checkout', authenticate, cartController.checkout);
+
+// Executions
+app.post("/api/tours/:id/purchase", authenticate, tourExecutionController.purchaseTour);
+app.post("/api/tours/:id/executions", authenticate, tourExecutionController.startTour);
+app.put("/api/tours/executions/:executionId/status", authenticate, tourExecutionController.checkStatus);
+app.put("/api/tours/executions/:executionId/complete", authenticate, tourExecutionController.completeTour);
+app.put("/api/tours/executions/:executionId/abandon", authenticate, tourExecutionController.abandonTour);
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
