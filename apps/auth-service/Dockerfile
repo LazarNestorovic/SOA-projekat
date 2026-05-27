@@ -1,21 +1,17 @@
 FROM golang:1.26.1-alpine AS builder
 
-# Instaliraj protoc i Go plugin-ove za generisanje koda
+# Instaliraj protoc i Go plugin-ove
 RUN apk add --no-cache protobuf
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.5
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
 WORKDIR /src/auth-service
 
-# Kopiraj go.mod i preuzmi zavisnosti
-COPY auth-service/go.mod ./
-RUN go mod tidy
-
 # Kopiraj izvorni kod i proto fajlove
 COPY auth-service/ ./
 COPY proto/ ./proto/
 
-# Generiši gRPC/protobuf kod iz proto/auth/auth.proto → pb/
+# 1. Generiši pb/ fajlove (oni importuju grpc/protobuf)
 RUN mkdir -p pb && \
     protoc \
       --go_out=pb       --go_opt=paths=source_relative \
@@ -23,7 +19,10 @@ RUN mkdir -p pb && \
       --proto_path=proto/auth \
       proto/auth/auth.proto
 
-# Build (kompajlira sve .go fajlove u paketu, uključujući grpc_server.go)
+# 2. go mod tidy POSLE generisanja — sada vidi grpc/protobuf importe i popunjava go.sum
+RUN go mod tidy
+
+# 3. Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/auth-service .
 
 FROM alpine:3.21
