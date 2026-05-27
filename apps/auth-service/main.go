@@ -1,14 +1,17 @@
 package main
 
 import (
+	"auth-service/pb"
 	"auth-service/utils"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 )
 
 type issueTokenRequest struct {
@@ -34,10 +37,9 @@ type validateTokenResponse struct {
 }
 
 func main() {
-	// Router
+	// ─── HTTP server (postojeće rute) ─────────────────────────────────────
 	r := mux.NewRouter()
 
-	// Health check endpoint
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -111,11 +113,33 @@ func main() {
 		})
 	}).Methods(http.MethodPost)
 
-	serverPort := os.Getenv("SERVER_PORT")
-	if serverPort == "" {
-		serverPort = "8081"
+	httpPort := os.Getenv("SERVER_PORT")
+	if httpPort == "" {
+		httpPort = "8081"
 	}
-	port := ":" + serverPort
-	fmt.Printf("Auth service (JWT endast) pokrenut na portu %s\n", port)
-	log.Fatal(http.ListenAndServe(port, r))
+
+	// ─── gRPC server (port 9091) ──────────────────────────────────────────
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "9091"
+	}
+
+	lis, err := net.Listen("tcp", ":"+grpcPort)
+	if err != nil {
+		log.Fatalf("gRPC listener greška: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterAuthServiceServer(grpcServer, &authGRPCServer{})
+
+	go func() {
+		fmt.Printf("Auth service gRPC pokrenut na portu :%s\n", grpcPort)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("gRPC server greška: %v", err)
+		}
+	}()
+
+	// ─── HTTP server (blokira) ────────────────────────────────────────────
+	fmt.Printf("Auth service HTTP pokrenut na portu :%s\n", httpPort)
+	log.Fatal(http.ListenAndServe(":"+httpPort, r))
 }

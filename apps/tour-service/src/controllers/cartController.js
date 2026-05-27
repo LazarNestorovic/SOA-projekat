@@ -1,8 +1,6 @@
 const { pool } = require('../config/database');
 const crypto = require('crypto');
-const axios = require('axios');
-
-const stakeholderServiceUrl = process.env.STAKEHOLDER_SERVICE_URL || 'http://stakeholder-service:8082';
+const stakeholderClient = require('../grpc/stakeholderClient');
 
 const getOrCreateCart = async (touristId) => {
 	const existing = await pool.query(
@@ -177,15 +175,13 @@ const checkout = async (req, res) => {
 		);
 		const totalAmount = parseFloat(totalResult.rows[0].total);
 
-		// Skinuti balans kod stakeholder-service
+		// Skinuti balans kod stakeholder-service (gRPC)
 		if (totalAmount > 0) {
 			try {
-				await axios.post(`${stakeholderServiceUrl}/internal/balance/deduct`, {
-					user_id: touristId,
-					amount: totalAmount,
-				});
+				await stakeholderClient.deductBalance(touristId, totalAmount);
 			} catch (err) {
-				if (err.response?.status === 402) {
+				if (err.grpcCode !== undefined) {
+					// FAILED_PRECONDITION → nedovoljan balans
 					return res.status(402).json({ error: 'Nedovoljan balans za kupovinu' });
 				}
 				throw err;

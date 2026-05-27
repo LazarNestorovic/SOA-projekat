@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "auth-service/pb";
+
+// ValidateToken — proverava JWT token i vraća podatke o korisniku.
+// Koristi ga: API Gateway pri svakom autentifikovanom zahtevu.
+
+service AuthService {
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  uint32 user_id  = 1;
+  string username = 2;
+  string email    = 3;
+  string role     = 4;
+}
