@@ -80,6 +80,26 @@ async function runMigrations() {
         purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(tourist_id, tour_id)
       );
+
+      CREATE TABLE IF NOT EXISTS tour_purchases (
+        id SERIAL PRIMARY KEY,
+        tour_id INTEGER REFERENCES tours(id) ON DELETE CASCADE,
+        tourist_id INTEGER NOT NULL,
+        price NUMERIC DEFAULT 0,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tour_id, tourist_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS tour_executions (
+        id SERIAL PRIMARY KEY,
+        tour_id INTEGER REFERENCES tours(id) ON DELETE CASCADE,
+        tourist_id INTEGER NOT NULL,
+        status VARCHAR(50) DEFAULT 'active',
+        start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        end_time TIMESTAMP,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_key_points JSONB DEFAULT '[]'
+      );
     `);
 		console.log('Tour migracije uspesno pokrenute!');
 	} catch (error) {

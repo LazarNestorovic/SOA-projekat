@@ -99,3 +99,28 @@ export async function checkout(token) {
 	const { data } = await tourClient.post('/cart/checkout', {}, { headers: authHeader(token) });
 	return data;
 }
+
+export async function purchaseTour(token, tourId) {
+    const { data } = await tourClient.post(`/${tourId}/purchase`, {}, { headers: authHeader(token) });
+    return data;
+}
+
+export async function startTour(token, tourId) {
+    const { data } = await tourClient.post(`/${tourId}/executions`, {}, { headers: authHeader(token) });
+    return data;
+}
+
+export async function checkExecutionStatus(token, executionId, payload) {
+    const { data } = await tourClient.put(`/executions/${executionId}/status`, payload, { headers: authHeader(token) });
+    return data;
+}
+
+export async function completeTourExecution(token, executionId) {
+    const { data } = await tourClient.put(`/executions/${executionId}/complete`, {}, { headers: authHeader(token) });
+    return data;
+}
+
+export async function abandonTourExecution(token, executionId) {
+    const { data } = await tourClient.put(`/executions/${executionId}/abandon`, {}, { headers: authHeader(token) });
+    return data;
+}

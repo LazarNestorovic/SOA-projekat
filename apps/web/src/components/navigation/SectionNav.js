@@ -8,6 +8,7 @@ const sections = [
   { key: 'tour-browse', label: 'Pretraži ture' },
   { key: 'tour-cart', label: 'Korpa' },
   { key: 'tour-purchased', label: 'Kupljene ture' },
+  { key: 'tour-play', label: 'Pokreni turu' },
   { key: 'admin', label: 'Admin' },
 ];
 
