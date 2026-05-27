@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  getAllTours, 
-  purchaseTour, 
-  startTour, 
-  checkExecutionStatus, 
-  completeTourExecution, 
-  abandonTourExecution 
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  getPurchasedTours,
+  getCurrentPosition,
+  updateCurrentPosition,
+  startTour,
+  checkExecutionStatus,
+  completeTourExecution,
+  abandonTourExecution,
 } from '../../services/tourService';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -19,30 +20,36 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-// Zuta ikonica za trenutnu poziciju igraca
+// Žuta ikonica — trenutna pozicija turiste
 const playerIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  shadowSize: [41, 41],
 });
 
-// Custom ikonica za preostale / zavrsene tacke
+// Crvena — nedosegnuta ključna tačka
 const uncompletedIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
   iconSize: [25, 41],
-  iconAnchor: [12, 41]
+  iconAnchor: [12, 41],
 });
+
+// Zelena — dosegnuta ključna tačka
 const completedIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
   iconSize: [25, 41],
-  iconAnchor: [12, 41]
+  iconAnchor: [12, 41],
 });
 
+/**
+ * Position Simulator — klik na mapu teleportuje turista na tu lokaciju.
+ * Pozicija se odmah čuva i na back-endu (tourist_current_positions).
+ */
 function ClickSimulator({ onPositionChange }) {
   useMapEvents({
     click(e) {
@@ -54,59 +61,83 @@ function ClickSimulator({ onPositionChange }) {
 
 function TourExecutionPanel({ token, user, onNotice, onError }) {
   const [tours, setTours] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
-  
-  // Pos sim
+
+  // Lokalna kopija pozicije (sinhronizovana sa Position Simulatorom)
   const [currentLat, setCurrentLat] = useState(45.25167);
   const [currentLon, setCurrentLon] = useState(19.83694);
 
-  // Mapped data
   const [completedPoints, setCompletedPoints] = useState([]);
   const [tourKeyPoints, setTourKeyPoints] = useState([]);
 
+  // ─── Dohvati kupljene ture pri mount-u ───────────────────────────────────
   useEffect(() => {
     fetchTours();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const fetchTours = async () => {
+    setLoading(true);
     try {
-      const all = await getAllTours(token);
-      // TODO (REVERT LATER): Privremeno omoguceno dohvatanje svih tura
-      // const executable = all.filter(t => t.status === 'published' || t.status === 'archived');
-      const executable = all;
+      const purchased = await getPurchasedTours(token);
+      // Turista može pokrenuti samo objavljene ili arhivirane ture
+      const executable = purchased.filter(
+        (t) => t.status === 'published' || t.status === 'archived'
+      );
       setTours(executable);
     } catch (err) {
       onError(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePurchase = async (tourId) => {
-    try {
-      await purchaseTour(token, tourId);
-      onNotice('Tura uspesno kupljena', 'success');
-    } catch (err) {
-      onError(err);
-    }
-  };
+  // ─── Position Simulator: klik na mapu ────────────────────────────────────
+  // Azurira lokalnu poziciju I šalje je na back-end (tourist_current_positions)
+  const handlePositionChange = useCallback(
+    async (lat, lon) => {
+      setCurrentLat(lat);
+      setCurrentLon(lon);
+      try {
+        await updateCurrentPosition(token, { latitude: lat, longitude: lon });
+      } catch (err) {
+        console.error('Greška pri azuriranju pozicije:', err);
+      }
+    },
+    [token]
+  );
 
+  // ─── Pokretanje ture ─────────────────────────────────────────────────────
   const handleStart = async (tour) => {
     try {
+      // 1. Snimi trenutnu poziciju u Position Simulator (back-end)
+      await updateCurrentPosition(token, { latitude: currentLat, longitude: currentLon });
+
+      // 2. Kreiraj sesiju
       const session = await startTour(token, tour.id);
       setActiveSession(session);
       setCompletedPoints(session.completed_key_points || []);
       setTourKeyPoints(tour.key_points || []);
-      onNotice('Tura je zapoceta', 'success');
 
-      // Odmah zabelezi poziciju pri pokretanju
-      await checkExecutionStatus(token, session.id, {
-         latitude: currentLat,
-         longitude: currentLon
-      });
+      // 3. Odmah pitaj Position Simulator za poziciju, pa proveri ključne tačke
+      const pos = await getCurrentPosition(token);
+      const lat = pos ? parseFloat(pos.latitude) : currentLat;
+      const lon = pos ? parseFloat(pos.longitude) : currentLon;
+
+      setCurrentLat(lat);
+      setCurrentLon(lon);
+
+      const res = await checkExecutionStatus(token, session.id, { latitude: lat, longitude: lon });
+      if (res.completed_key_points) setCompletedPoints(res.completed_key_points);
+
+      onNotice('Tura je započeta!', 'success');
     } catch (err) {
       onError(err);
     }
   };
 
+  // ─── Napuštanje ture ──────────────────────────────────────────────────────
   const handleAbandon = async () => {
     if (!activeSession) return;
     try {
@@ -114,145 +145,222 @@ function TourExecutionPanel({ token, user, onNotice, onError }) {
       setActiveSession(null);
       setCompletedPoints([]);
       setTourKeyPoints([]);
-      onNotice('Tura je napustena', 'warning');
+      onNotice('Tura je napuštena.', 'warning');
     } catch (err) {
       onError(err);
     }
   };
 
+  // ─── Interval na 10 sekundi (samo tokom aktivne sesije) ──────────────────
+  // Tok: (1) pitaj Position Simulator za poziciju → (2) pošalji na back za proveru tačaka
   useEffect(() => {
-    let intervalId;
-    if (activeSession && activeSession.status === 'active') {
-      intervalId = setInterval(async () => {
-        try {
-          const res = await checkExecutionStatus(token, activeSession.id, {
-            latitude: currentLat,
-            longitude: currentLon
-          });
-          
-          if (res.completed_key_points) {
-            setCompletedPoints(res.completed_key_points);
-          }
-          if (res.new_completions) {
-             onNotice('Nova kljucna tacka je ostvarena!', 'success');
-          }
-          if (res.is_finished) {
-             onNotice('Tura je uspesno kompletirana!', 'success');
-             clearInterval(intervalId);
-             setActiveSession(prev => ({...prev, status: 'completed'}));
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      }, 10000); // Na 10 sekundi
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [activeSession, currentLat, currentLon, token, onNotice]);
+    if (!activeSession || activeSession.status !== 'active') return;
 
-  // Derived state to find the next key point (first uncompleted)
+    const intervalId = setInterval(async () => {
+      try {
+        // Korak 1 — pitaj Position Simulator (tourist_current_positions)
+        const pos = await getCurrentPosition(token);
+        if (!pos) return;
+
+        const lat = parseFloat(pos.latitude);
+        const lon = parseFloat(pos.longitude);
+
+        // Sinhronizuj lokalnu mapu sa Position Simulatorom
+        setCurrentLat(lat);
+        setCurrentLon(lon);
+
+        // Korak 2 — pošalji poziciju na back, proveri blizinu ključnih tačaka
+        const res = await checkExecutionStatus(token, activeSession.id, {
+          latitude: lat,
+          longitude: lon,
+        });
+
+        if (res.completed_key_points) {
+          setCompletedPoints(res.completed_key_points);
+        }
+        if (res.new_completions) {
+          onNotice('Nova ključna tačka je dosegnuta!', 'success');
+        }
+        if (res.is_finished) {
+          onNotice('Tura je uspešno kompletirana! Čestitamo!', 'success');
+          clearInterval(intervalId);
+          setActiveSession((prev) => ({ ...prev, status: 'completed' }));
+        }
+      } catch (err) {
+        console.error('Greška pri provjeri statusa ture:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [activeSession, token, onNotice]);
+
+  // ─── Sledeća nedosegnuta ključna tačka (za prikaz putanje) ───────────────
   const nextKeyPoint = useMemo(() => {
     if (!tourKeyPoints.length) return null;
-    return tourKeyPoints.find(kp => 
-      !completedPoints.some(c => c.id === kp.id)
-    ) || null;
+    return tourKeyPoints.find((kp) => !completedPoints.some((c) => c.id === kp.id)) || null;
   }, [tourKeyPoints, completedPoints]);
 
+  // ─── Ekran: tura završena ─────────────────────────────────────────────────
+  if (activeSession && activeSession.status === 'completed') {
+    return (
+      <div className="panel">
+        <h2>🎉 Tura je završena! Čestitamo!</h2>
+        <p>Uspešno ste kompletirali sve ključne tačke.</p>
+        <button
+          onClick={() => {
+            setActiveSession(null);
+            setCompletedPoints([]);
+            setTourKeyPoints([]);
+            fetchTours();
+          }}
+        >
+          Vrati se na listu tura
+        </button>
+      </div>
+    );
+  }
+
+  // ─── Ekran: aktivna tura ─────────────────────────────────────────────────
   if (activeSession) {
-    if (activeSession.status === 'completed') {
-        return (
-            <div className="panel">
-                <h2>Tura je Završena! Čestitamo!</h2>
-                <button onClick={() => {
-                    setActiveSession(null);
-                    setCompletedPoints([]);
-                    setTourKeyPoints([]);
-                }}>Vrati se na listu Tura</button>
-            </div>
-        );
-    }
+    const doneCount = completedPoints.length;
+    const totalCount = tourKeyPoints.length;
 
     return (
       <div className="panel" style={{ height: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <h2>Aktivna Tura</h2>
-        
+        <h2>Aktivna tura</h2>
+
         <div style={{ marginBottom: '10px' }}>
-          <strong>Pomoć:</strong> Kliknite bilo gde na mapi kako bi ste se "teleportovali" na tu lokaciju. Prikazuje se put do naredne ključne tačke.
+          <strong>Position simulator:</strong> Kliknite na mapu da se "teleportujete" na tu lokaciju.
+          Pozicija se automatski šalje na server svakih 10 sekundi.
           <br />
-          <button onClick={handleAbandon} style={{ backgroundColor: '#eb4034', color: 'white', marginTop: '10px', padding: '5px 10px', border: 'none', cursor: 'pointer' }}>Napusti Turu</button>
+          <span>
+            Napredak: <strong>{doneCount}/{totalCount}</strong> ključnih tačaka dosegnuto.
+          </span>
+          <br />
+          <button
+            onClick={handleAbandon}
+            style={{
+              backgroundColor: '#eb4034',
+              color: 'white',
+              marginTop: '10px',
+              padding: '5px 14px',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: '4px',
+            }}
+          >
+            Napusti turu
+          </button>
         </div>
 
         <div style={{ flex: 1, minHeight: '400px', border: '2px solid #ccc' }}>
-            <MapContainer center={[currentLat, currentLon]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; OpenStreetMap contributors'
-                />
-                
-                {/* Simulator klika */}
-                <ClickSimulator onPositionChange={(lat, lon) => {
-                    setCurrentLat(lat);
-                    setCurrentLon(lon);
-                }} />
+          <MapContainer
+            center={[currentLat, currentLon]}
+            zoom={13}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution="&copy; OpenStreetMap contributors"
+            />
 
-                {/* Trenutna pozicija turista */}
-                <Marker position={[currentLat, currentLon]} icon={playerIcon}>
-                    <Popup>Vi ste ovde</Popup>
+            {/* Position Simulator — klik teleportuje turista */}
+            <ClickSimulator onPositionChange={handlePositionChange} />
+
+            {/* Trenutna pozicija turiste */}
+            <Marker position={[currentLat, currentLon]} icon={playerIcon}>
+              <Popup>Vi ste ovde</Popup>
+            </Marker>
+
+            {/* Ključne tačke */}
+            {tourKeyPoints.map((kp) => {
+              const isCompleted = completedPoints.some((c) => c.id === kp.id);
+              const reachedAt = completedPoints.find((c) => c.id === kp.id)?.reached_at;
+              return (
+                <Marker
+                  key={kp.id}
+                  position={[kp.latitude, kp.longitude]}
+                  icon={isCompleted ? completedIcon : uncompletedIcon}
+                >
+                  <Popup>
+                    <strong>{kp.name}</strong>
+                    <br />
+                    {kp.description}
+                    <br />
+                    Status: {isCompleted ? `✅ Dosegnuto${reachedAt ? ' u ' + new Date(reachedAt).toLocaleTimeString() : ''}` : '⏳ Na čekanju'}
+                  </Popup>
                 </Marker>
+              );
+            })}
 
-                {/* Ključne tačke */}
-                {tourKeyPoints.map((kp, idx) => {
-                    const isCompleted = completedPoints.some(c => c.id === kp.id);
-                    return (
-                        <Marker 
-                            key={kp.id} 
-                            position={[kp.latitude, kp.longitude]}
-                            icon={isCompleted ? completedIcon : uncompletedIcon}
-                        >
-                            <Popup>
-                                <strong>{kp.name}</strong><br/>
-                                {kp.description}<br/>
-                                Status: {isCompleted ? 'Dosegnuto' : 'Na čekanju'}
-                            </Popup>
-                        </Marker>
-                    )
-                })}
-
-                {/* Putanja do prve sledeće neostvarene tačke */}
-                {nextKeyPoint && (
-                    <Polyline 
-                        positions={[
-                            [currentLat, currentLon],
-                            [nextKeyPoint.latitude, nextKeyPoint.longitude]
-                        ]} 
-                        color="blue" 
-                        dashArray="10, 10" 
-                        weight={3}
-                     />
-                )}
-            </MapContainer>
+            {/* Putanja do prve sledeće nedosegnute tačke */}
+            {nextKeyPoint && (
+              <Polyline
+                positions={[
+                  [currentLat, currentLon],
+                  [nextKeyPoint.latitude, nextKeyPoint.longitude],
+                ]}
+                color="blue"
+                dashArray="10, 10"
+                weight={3}
+              />
+            )}
+          </MapContainer>
         </div>
       </div>
     );
   }
 
+  // ─── Ekran: lista kupljenih tura ─────────────────────────────────────────
   return (
     <div className="panel">
-      <h2>Ekran za pokretanje Tura</h2>
+      <h2>Moje kupljene ture</h2>
+      <p style={{ color: '#666', marginBottom: '16px' }}>
+        Prikazane su vaše kupljene objavljene i arhivirane ture. Da biste kupili novu turu, idite na <em>Pretraži ture</em>.
+      </p>
+
+      {loading && <p>Učitavanje...</p>}
+
+      {!loading && tours.length === 0 && (
+        <p style={{ color: '#888' }}>
+          Nema kupljenih tura za pokretanje. Idite na <strong>Pretraži ture</strong> i kupite turu putem korpe.
+        </p>
+      )}
+
       <div className="list">
-        {tours.map(t => (
-          <div key={t.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px 0' }}>
-            <h4>{t.title} (Status: {t.status})</h4>
-            <p>{t.description}</p>
-            <p>Br. ključnih tačaka: {t.key_points ? t.key_points.length : 0}</p>
-            <div>
-               <button onClick={() => handlePurchase(t.id)}>1. Kupi Turu</button>
-               <button onClick={() => handleStart(t)} style={{marginLeft: '10px'}}>2. Pokreni Turu</button>
-            </div>
+        {tours.map((t) => (
+          <div
+            key={t.id}
+            style={{ border: '1px solid #ccc', padding: '12px', margin: '10px 0', borderRadius: '6px' }}
+          >
+            <h4 style={{ margin: '0 0 6px' }}>
+              {t.title}{' '}
+              <span style={{ fontWeight: 'normal', color: '#888', fontSize: '13px' }}>
+                ({t.status === 'published' ? 'Objavljena' : 'Arhivirana'})
+              </span>
+            </h4>
+            <p style={{ margin: '4px 0' }}>{t.description}</p>
+            <p style={{ margin: '4px 0', color: '#555' }}>
+              Ključnih tačaka: <strong>{t.key_points ? t.key_points.length : 0}</strong>
+              {' · '}
+              Težina: <strong>{t.difficulty}</strong>
+            </p>
+            <button
+              onClick={() => handleStart(t)}
+              style={{
+                marginTop: '8px',
+                padding: '6px 16px',
+                backgroundColor: '#2e7d32',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              ▶ Pokreni turu
+            </button>
           </div>
         ))}
-        {tours.length === 0 && <p>Nema dostupnih tura za pokretanje.</p>}
       </div>
     </div>
   );
