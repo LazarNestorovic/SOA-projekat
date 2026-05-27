@@ -21,7 +21,7 @@ services:
     image: postgres:17-alpine
     container_name: stakeholders_db
     restart: always
-    environment: 
+    environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
       POSTGRES_DB: stakeholders
@@ -36,11 +36,11 @@ services:
     image: postgres:17-alpine
     container_name: tours_db
     restart: always
-    environment: 
+    environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
       POSTGRES_DB: tours_db
-    ports: 
+    ports:
       - "5435:5432"
     volumes:
       - tour_data:/var/lib/postgresql/data
@@ -51,11 +51,11 @@ services:
     image: postgres:17-alpine
     container_name: blogs_db
     restart: always
-    environment: 
+    environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
       POSTGRES_DB: blogs
-    ports: 
+    ports:
       - "5433:5432"
     volumes:
       - blog_data:/var/lib/postgresql/data
@@ -70,7 +70,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      AUTH_SERVICE_URL: http://auth-service:8081
+      AUTH_SERVICE_URL: http://auth-service:8081       # zadržano (healthcheck)
+      AUTH_SERVICE_GRPC_URL: auth-service:9091         # gRPC ValidateToken
     networks:
       - soa_network
     depends_on:
@@ -82,16 +83,18 @@ services:
         condition: service_started
       auth-service:
         condition: service_healthy
-   
+
   auth-service:
     build:
       context: ./apps
       dockerfile: auth-service/Dockerfile
     container_name: auth_service
     ports:
-      - "8081:8081"
+      - "8081:8081"   # HTTP
+      - "9091:9091"   # gRPC
     environment:
       SERVER_PORT: 8081
+      GRPC_PORT: 9091
       JWT_SECRET: your-secret-key-change-this-in-production
     networks:
       - soa_network
@@ -107,7 +110,8 @@ services:
       dockerfile: stakeholder-service/Dockerfile
     container_name: stakeholder_service
     ports:
-      - "8082:8082"
+      - "8082:8082"   # HTTP
+      - "9092:9092"   # gRPC
     environment:
       DB_HOST: stakeholders-db
       DB_PORT: 5432
@@ -116,6 +120,7 @@ services:
       DB_NAME: stakeholders
       DB_SSLMODE: disable
       SERVER_PORT: 8082
+      GRPC_PORT: 9092
       JWT_SECRET: your-secret-key-change-this-in-production
       AUTH_SERVICE_URL: http://auth-service:8081
     networks:
@@ -142,7 +147,8 @@ services:
       DB_NAME: tours_db
       SERVER_PORT: 8085
       AUTH_SERVICE_URL: http://auth-service:8081
-      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:8082
+      STAKEHOLDER_SERVICE_URL: http://stakeholder-service:8082  # zadržano
+      STAKEHOLDER_GRPC_URL: stakeholder-service:9092            # gRPC DeductBalance
     networks:
       - soa_network
     depends_on:

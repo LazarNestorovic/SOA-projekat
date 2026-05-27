@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package stakeholder;
+
+option go_package = "stakeholder-service/pb";
+
+// DeductBalance — skida iznos sa balansa turiste.
+// Koristi ga: Tour Service pri checkout-u (kupovina tura).
+
+service StakeholderService {
+  rpc DeductBalance(DeductBalanceRequest) returns (DeductBalanceResponse);
+}
+
+message DeductBalanceRequest {
+  uint32 user_id = 1;
+  double amount  = 2;
+}
+
+message DeductBalanceResponse {
+  double new_balance = 1;
+}
