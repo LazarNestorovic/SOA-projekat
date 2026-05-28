@@ -278,6 +278,24 @@ func (h *UserHandler) DeductBalanceInternal(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+func (h *UserHandler) DeleteUserInternal(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.ParseUint(vars["id"], 10, 32)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći ID korisnika"})
+		return
+	}
+
+	if err := h.userService.DeleteUser(r.Context(), uint(id)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *UserHandler) BlockAccount(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("userID")
 	if userID == nil {

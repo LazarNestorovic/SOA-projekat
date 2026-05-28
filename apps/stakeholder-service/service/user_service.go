@@ -182,3 +182,7 @@ func (s *UserService) TopUpBalance(ctx context.Context, id uint, amount float64)
 func (s *UserService) DeductBalance(ctx context.Context, id uint, amount float64) (float64, error) {
 	return s.userRepo.DeductBalance(ctx, id, amount)
 }
+
+func (s *UserService) DeleteUser(ctx context.Context, id uint) error {
+	return s.userRepo.DeleteByID(ctx, id)
+}

@@ -46,6 +46,10 @@ func main() {
 	profileService := service.NewProfileService(profileRepository)
 	profileHandler := handler.NewProfileHandler(profileService)
 
+	accountRepo := repository.NewAccountRepository(db)
+	accountService := service.NewAccountService(accountRepo)
+	accountHandler := handler.NewAccountHandler(accountService)
+
 	userService.SetProfileRepository(profileRepository)
 
 	// ─── HTTP server (postojeće rute) ─────────────────────────────────────
@@ -64,9 +68,12 @@ func main() {
 	protected.HandleFunc("/users/{id}/topup", userHandler.TopUpBalance).Methods(http.MethodPost)
 	protected.HandleFunc("/profile", profileHandler.GetProfile).Methods(http.MethodGet)
 	protected.HandleFunc("/profile/update", profileHandler.UpdateProfile).Methods(http.MethodPut)
+	protected.HandleFunc("/balance/debit", accountHandler.DebitBalance).Methods(http.MethodPost)
+	protected.HandleFunc("/balance/credit", accountHandler.CreditBalance).Methods(http.MethodPost)
 
 	// Interni HTTP endpoint (zadržan za kompatibilnost)
 	router.HandleFunc("/internal/balance/deduct", userHandler.DeductBalanceInternal).Methods(http.MethodPost)
+	router.HandleFunc("/internal/users/{id}", userHandler.DeleteUserInternal).Methods(http.MethodDelete)
 
 	// ─── gRPC server (port 9092) ──────────────────────────────────────────
 	grpcPort := os.Getenv("GRPC_PORT")
