@@ -19,6 +19,13 @@ RUN mkdir -p pb && \
       --proto_path=proto/auth \
       proto/auth/auth.proto
 
+# 1b. Generiši pb/ fajlove za tour RPC
+RUN protoc \
+  --go_out=pb       --go_opt=paths=source_relative \
+  --go-grpc_out=pb  --go-grpc_opt=paths=source_relative \
+  --proto_path=proto/tour \
+  proto/tour/tour.proto
+
 # 2. go mod tidy POSLE generisanja — popunjava go.sum sa grpc/protobuf
 RUN go mod tidy
 

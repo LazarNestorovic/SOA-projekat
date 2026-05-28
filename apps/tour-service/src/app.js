@@ -5,6 +5,7 @@ const { authenticate } = require('./middleware/auth');
 const tourController = require('./controllers/tourController');
 const cartController = require('./controllers/cartController');
 const tourExecutionController = require('./controllers/tourExecutionController');
+const { startGrpcServer } = require('./grpc/tourServer');
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // Pokretanje migracija baze pri podizanju
 runMigrations();
+startGrpcServer();
 
 app.get('/health', (req, res) => {
 	res.status(200).json({ status: 'healthy', service: 'tour-service' });
@@ -21,7 +23,11 @@ app.get('/health', (req, res) => {
 
 // Ture za vodiče/admin
 app.post('/api/tours', authenticate, tourController.createTour);
-app.patch('/api/tours/:id/status', authenticate, tourController.updateTourStatus);
+app.patch(
+	'/api/tours/:id/status',
+	authenticate,
+	tourController.updateTourStatus,
+);
 app.get('/api/tours/my', authenticate, tourController.getMyTours);
 app.get('/api/tours/all', authenticate, tourController.getAllTours);
 app.post('/api/tours/:id/key-points', authenticate, tourController.addKeyPoint);
@@ -55,15 +61,39 @@ app.get('/api/tours/purchased', authenticate, cartController.getPurchasedTours);
 // Korpa
 app.get('/api/tours/cart', authenticate, cartController.getCart);
 app.post('/api/tours/cart/add/:tourId', authenticate, cartController.addToCart);
-app.delete('/api/tours/cart/remove/:tourId', authenticate, cartController.removeFromCart);
+app.delete(
+	'/api/tours/cart/remove/:tourId',
+	authenticate,
+	cartController.removeFromCart,
+);
 app.post('/api/tours/cart/checkout', authenticate, cartController.checkout);
 
 // Executions
-app.post("/api/tours/:id/purchase", authenticate, tourExecutionController.purchaseTour);
-app.post("/api/tours/:id/executions", authenticate, tourExecutionController.startTour);
-app.put("/api/tours/executions/:executionId/status", authenticate, tourExecutionController.checkStatus);
-app.put("/api/tours/executions/:executionId/complete", authenticate, tourExecutionController.completeTour);
-app.put("/api/tours/executions/:executionId/abandon", authenticate, tourExecutionController.abandonTour);
+app.post(
+	'/api/tours/:id/purchase',
+	authenticate,
+	tourExecutionController.purchaseTour,
+);
+app.post(
+	'/api/tours/:id/executions',
+	authenticate,
+	tourExecutionController.startTour,
+);
+app.put(
+	'/api/tours/executions/:executionId/status',
+	authenticate,
+	tourExecutionController.checkStatus,
+);
+app.put(
+	'/api/tours/executions/:executionId/complete',
+	authenticate,
+	tourExecutionController.completeTour,
+);
+app.put(
+	'/api/tours/executions/:executionId/abandon',
+	authenticate,
+	tourExecutionController.abandonTour,
+);
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
