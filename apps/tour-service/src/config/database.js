@@ -23,6 +23,8 @@ async function runMigrations() {
         tags TEXT[] DEFAULT '{}',
         status VARCHAR(50) DEFAULT 'draft',
         price NUMERIC DEFAULT 0,
+        published_at TIMESTAMP,
+        archived_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -113,6 +115,21 @@ async function runMigrations() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+		// Ensure columns for new features exist
+		await client.query(`
+      ALTER TABLE tours
+      ADD COLUMN IF NOT EXISTS distance_km NUMERIC DEFAULT 0;
+
+      ALTER TABLE tours
+      ADD COLUMN IF NOT EXISTS transport_times JSONB DEFAULT '{}'::jsonb;
+
+      ALTER TABLE tours
+      ADD COLUMN IF NOT EXISTS published_at TIMESTAMP;
+
+      ALTER TABLE tours
+      ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
     `);
 		console.log('Tour migracije uspesno pokrenute!');
 	} catch (error) {

@@ -79,6 +79,16 @@ function StarDisplay({ value }) {
 	);
 }
 
+function formatDateTime(value) {
+	if (!value) return 'n/a';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return 'n/a';
+	return date.toLocaleString('sr-RS', {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	});
+}
+
 function TourEditorPanel({ token, user, onNotice, onError }) {
 	const isAuthor = ['author', 'admin', 'guide'].includes(user?.role);
 	const isTourist = user?.role === 'tourist';
@@ -88,6 +98,9 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 	const [difficulty, setDifficulty] = useState('');
 	const [tagsStr, setTagsStr] = useState('');
 	const [price, setPrice] = useState('');
+	const [walkMinutes, setWalkMinutes] = useState('');
+	const [bikeMinutes, setBikeMinutes] = useState('');
+	const [carMinutes, setCarMinutes] = useState('');
 	const [statusChanging, setStatusChanging] = useState(null);
 
 	const [pendingKPs, setPendingKPs] = useState([]);
@@ -433,6 +446,21 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 			onNotice('Naziv, opis i težina su obavezni.', 'error');
 			return;
 		}
+		const transportTimes = {
+			peske: Number(walkMinutes),
+			bicikl: Number(bikeMinutes),
+			automobil: Number(carMinutes),
+		};
+		const hasTransportTime = Object.values(transportTimes).some(
+			(value) => Number.isFinite(value) && value > 0,
+		);
+		if (!hasTransportTime) {
+			onNotice(
+				'Unesi bar jedno vreme obilaska za prevoz: peške, bicikl ili automobil.',
+				'error',
+			);
+			return;
+		}
 		try {
 			setSubmitting(true);
 			const tags = tagsStr
@@ -445,6 +473,7 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 				difficulty,
 				tags,
 				price: parseFloat(price) || 0,
+				transport_times: transportTimes,
 			});
 			for (const kp of pendingKPs) {
 				await addKeyPointToTour(token, tour.id, {
@@ -461,6 +490,9 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 			setDifficulty('');
 			setTagsStr('');
 			setPrice('');
+			setWalkMinutes('');
+			setBikeMinutes('');
+			setCarMinutes('');
 			setPendingKPs([]);
 			setPickedPos(null);
 			fetchMyTours();
@@ -476,9 +508,24 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 		setStatusChanging(tourId);
 		try {
 			await updateTourStatus(token, tourId, newStatus);
-			const label = newStatus === 'published' ? 'objavljena' : newStatus === 'archived' ? 'arhivirana' : 'vraćena na draft';
+			const label =
+				newStatus === 'published'
+					? 'objavljena'
+					: newStatus === 'archived'
+						? 'arhivirana'
+						: 'vraćena na draft';
+			if (newStatus === 'published') {
+				onNotice(
+					'Tura je uspešno objavljena ili ponovo aktivirana.',
+					'success',
+				);
+				fetchMyTours();
+				fetchAllTours();
+				return;
+			}
 			onNotice(`Tura je uspešno ${label}.`, 'success');
 			fetchMyTours();
+			fetchAllTours();
 		} catch (err) {
 			onError(err);
 		} finally {
@@ -607,6 +654,46 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 							step="0.01"
 							onChange={(e) => setPrice(e.target.value)}
 						/>
+
+						<div
+							style={{
+								marginTop: '16px',
+								padding: '12px',
+								border: '1px solid #ddd',
+								borderRadius: '8px',
+								background: '#fafafa',
+							}}>
+							<h3 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>
+								Vreme obilaska po prevozu{' '}
+								<span className="meta">(obavezno bar jedno)</span>
+							</h3>
+							<div style={{ display: 'grid', gap: '8px' }}>
+								<input
+									type="number"
+									min="0"
+									step="1"
+									placeholder="Peške - minuti npr. 120"
+									value={walkMinutes}
+									onChange={(e) => setWalkMinutes(e.target.value)}
+								/>
+								<input
+									type="number"
+									min="0"
+									step="1"
+									placeholder="Bicikl - minuti npr. 45"
+									value={bikeMinutes}
+									onChange={(e) => setBikeMinutes(e.target.value)}
+								/>
+								<input
+									type="number"
+									min="0"
+									step="1"
+									placeholder="Automobil - minuti"
+									value={carMinutes}
+									onChange={(e) => setCarMinutes(e.target.value)}
+								/>
+							</div>
+						</div>
 
 						<div style={{ marginTop: '20px' }}>
 							<h3 style={{ margin: '0 0 10px 0', fontSize: '1rem' }}>
@@ -866,6 +953,11 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 											Status: {tour.status} &nbsp;|&nbsp; Cena: {tour.price} RSD
 											&nbsp;|&nbsp; Težina: {tour.difficulty}
 										</p>
+										<p className="meta" style={{ margin: '0 0 4px 0' }}>
+											Objavljena: {formatDateTime(tour.published_at)}{' '}
+											&nbsp;|&nbsp; Arhivirana:{' '}
+											{formatDateTime(tour.archived_at)}
+										</p>
 										<p style={{ margin: '0 0 4px 0' }}>{tour.description}</p>
 										{tour.tags?.length > 0 && (
 											<p className="meta" style={{ margin: '0 0 4px 0' }}>
@@ -897,37 +989,75 @@ function TourEditorPanel({ token, user, onNotice, onError }) {
 												style={{ whiteSpace: 'nowrap' }}>
 												+ Dodaj tačku na turu
 											</button>
-											{tour.status !== 'published' && tour.status !== 'archived' && (
-												<button
-													type="button"
-													disabled={statusChanging === tour.id}
-													onClick={() => handleChangeStatus(tour.id, 'published')}
-													style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#10b981,#059669)' }}>
-													{statusChanging === tour.id ? '...' : 'Objavi turu'}
-												</button>
-											)}
-											{tour.status === 'published' && (
-												<>
-													<span style={{ fontSize: '12px', color: '#10b981', fontWeight: 700 }}>✓ Objavljena</span>
+											{tour.status !== 'published' &&
+												tour.status !== 'archived' && (
 													<button
 														type="button"
 														disabled={statusChanging === tour.id}
-														onClick={() => handleChangeStatus(tour.id, 'archived')}
-														style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#6b7280,#4b5563)' }}>
+														onClick={() =>
+															handleChangeStatus(tour.id, 'published')
+														}
+														style={{
+															whiteSpace: 'nowrap',
+															background:
+																'linear-gradient(120deg,#10b981,#059669)',
+														}}>
+														{statusChanging === tour.id ? '...' : 'Objavi turu'}
+													</button>
+												)}
+											{tour.status === 'published' && (
+												<>
+													<span
+														style={{
+															fontSize: '12px',
+															color: '#10b981',
+															fontWeight: 700,
+														}}>
+														✓ Objavljena
+													</span>
+													<button
+														type="button"
+														disabled={statusChanging === tour.id}
+														onClick={() =>
+															handleChangeStatus(tour.id, 'archived')
+														}
+														style={{
+															whiteSpace: 'nowrap',
+															background:
+																'linear-gradient(120deg,#6b7280,#4b5563)',
+														}}>
 														{statusChanging === tour.id ? '...' : 'Arhiviraj'}
 													</button>
 												</>
 											)}
 											{tour.status === 'archived' && (
 												<>
-													<span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 700 }}>Arhivirana</span>
+													<span
+														style={{
+															fontSize: '12px',
+															color: '#6b7280',
+															fontWeight: 700,
+														}}>
+														Arhivirana
+													</span>
 													<button
 														type="button"
 														disabled={statusChanging === tour.id}
-														onClick={() => handleChangeStatus(tour.id, 'draft')}
-														style={{ whiteSpace: 'nowrap', background: 'linear-gradient(120deg,#f59e0b,#d97706)' }}>
-														{statusChanging === tour.id ? '...' : 'Vrati na draft'}
+														onClick={() =>
+															handleChangeStatus(tour.id, 'published')
+														}
+														style={{
+															whiteSpace: 'nowrap',
+															background:
+																'linear-gradient(120deg,#f59e0b,#d97706)',
+														}}>
+														{statusChanging === tour.id
+															? '...'
+															: 'Ponovo objavi'}
 													</button>
+													<span style={{ fontSize: '12px', color: '#6b7280' }}>
+														Arhivirana: {formatDateTime(tour.archived_at)}
+													</span>
 												</>
 											)}
 										</div>

@@ -14,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"api-gateway/pb"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var routes = map[string]string{
@@ -91,6 +96,132 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.Host = target.Host
 	proxy.ServeHTTP(w, r)
+}
+
+func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+func getUserContextValue(r *http.Request) (uint, string, bool) {
+	userID, ok := r.Context().Value("userID").(uint)
+	if !ok {
+		return 0, "", false
+	}
+	role, _ := r.Context().Value("role").(string)
+	return userID, role, true
+}
+
+func tourRPCHandler(w http.ResponseWriter, r *http.Request) {
+	tourClient := client.NewTourClient()
+
+	if r.URL.Path == "/api/tours" && r.Method == http.MethodPost {
+		userID, _, ok := getUserContextValue(r)
+		if !ok {
+			writeJSONError(w, http.StatusUnauthorized, "Nedostaje korisnički kontekst")
+			return
+		}
+
+		var payload struct {
+			Title          string            `json:"title"`
+			Description    string            `json:"description"`
+			Difficulty     string            `json:"difficulty"`
+			Tags           []string          `json:"tags"`
+			Price          float64           `json:"price"`
+			TransportTimes map[string]uint32 `json:"transport_times"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			writeJSONError(w, http.StatusBadRequest, "Neispravan JSON payload")
+			return
+		}
+
+		resp, err := tourClient.CreateTour(r.Context(), &pb.CreateTourRequest{
+			UserId:         uint32(userID),
+			Title:          payload.Title,
+			Description:    payload.Description,
+			Difficulty:     payload.Difficulty,
+			Tags:           payload.Tags,
+			Price:          payload.Price,
+			TransportTimes: payload.TransportTimes,
+		})
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.InvalidArgument:
+					writeJSONError(w, http.StatusBadRequest, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	if strings.HasPrefix(r.URL.Path, "/api/tours/") && strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodPatch {
+		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		if len(parts) != 4 {
+			writeJSONError(w, http.StatusNotFound, "Ruta nije pronađena")
+			return
+		}
+
+		id, err := strconv.Atoi(parts[2])
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "Neispravan ID ture")
+			return
+		}
+
+		userID, role, ok := getUserContextValue(r)
+		if !ok {
+			writeJSONError(w, http.StatusUnauthorized, "Nedostaje korisnički kontekst")
+			return
+		}
+
+		var payload struct {
+			Status string `json:"status"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			writeJSONError(w, http.StatusBadRequest, "Neispravan JSON payload")
+			return
+		}
+
+		resp, err := tourClient.UpdateTourStatus(r.Context(), &pb.UpdateTourStatusRequest{
+			Id:     uint32(id),
+			UserId: uint32(userID),
+			Role:   role,
+			Status: payload.Status,
+		})
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.InvalidArgument:
+					writeJSONError(w, http.StatusBadRequest, st.Message())
+				case codes.NotFound:
+					writeJSONError(w, http.StatusNotFound, st.Message())
+				case codes.PermissionDenied:
+					writeJSONError(w, http.StatusForbidden, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	proxyHandler(w, r)
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -368,12 +499,14 @@ func main() {
 
 	protectedHandler := authMiddleware(http.HandlerFunc(proxyHandler))
 	protectedSagaHandler := authMiddleware(http.HandlerFunc(bookTourSagaHandler))
+	tourProtectedHandler := authMiddleware(http.HandlerFunc(tourRPCHandler))
 
 	mux.Handle("/api/blogs/", protectedHandler)
 	mux.Handle("/api/stakeholders/", protectedHandler)
 	mux.Handle("/api/followers/", protectedHandler)
-	mux.Handle("/api/tours/", protectedHandler)
 	mux.Handle("/api/sagas/tours/", protectedSagaHandler)
+	mux.Handle("/api/tours", tourProtectedHandler)
+	mux.Handle("/api/tours/", tourProtectedHandler)
 
 	finalHandler := corsMiddleware(mux)
 
