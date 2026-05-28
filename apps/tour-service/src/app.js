@@ -65,6 +65,10 @@ app.put("/api/tours/executions/:executionId/status", authenticate, tourExecution
 app.put("/api/tours/executions/:executionId/complete", authenticate, tourExecutionController.completeTour);
 app.put("/api/tours/executions/:executionId/abandon", authenticate, tourExecutionController.abandonTour);
 
+// Bookings
+app.post('/api/tours/:tourId/bookings', authenticate, tourController.createBooking);
+app.patch('/api/tours/bookings/:bookingId/status', authenticate, tourController.updateBookingStatus);
+
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
 	console.log(`Tour service (Node) pokrenut na portu ${PORT}`);

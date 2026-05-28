@@ -1,4 +1,4 @@
-import { tourClient, authHeader } from './httpClient';
+import { tourClient, sagaClient, authHeader } from './httpClient';
 
 export async function createTour(token, payload) {
 	const { data } = await tourClient.post('/', payload, {
@@ -123,4 +123,9 @@ export async function completeTourExecution(token, executionId) {
 export async function abandonTourExecution(token, executionId) {
     const { data } = await tourClient.put(`/executions/${executionId}/abandon`, {}, { headers: authHeader(token) });
     return data;
+}
+
+export async function bookTourWithSaga(token, tourId) {
+	const { data } = await sagaClient.post(`/tours/${tourId}/book`, {}, { headers: authHeader(token) });
+	return data;
 }

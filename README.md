@@ -10,6 +10,20 @@ Ovo je SOA (Service-Oriented Architecture) projekat sa microservices-ima u Go-u.
 ✅ Admin korisnici (insertovani direktno u bazu)  
 ✅ PostgreSQL baza podataka  
 
+## 🔁 SAGA tokovi (dodata funkcionalnost)
+
+Implementirana su dva SAGA toka u gateway-u i servisima:
+
+1) **Rezervacija ture + naplata**
+- Orkestracija preko gateway-a: `POST /api/sagas/tours/:tourId/book`
+- Kreira rezervaciju u tour servisu, zatim naplacuje balans u stakeholder servisu.
+- U slucaju greske radi kompenzaciju (cancel + refund).
+
+2) **Registracija + izdavanje tokena**
+- Orkestracija preko gateway-a: `POST /api/sagas/register`
+- Kreira korisnika u stakeholder servisu, zatim izdaje token u auth servisu.
+- U slucaju greske brise korisnika (kompenzacija).
+
 ## 🏗 Arhitektura
 
 ```

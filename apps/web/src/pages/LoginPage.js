@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthPanel from '../components/auth/AuthPanel';
 import ToastStack from '../components/layout/ToastStack';
-import { login, register } from '../services/authService';
+import { login, registerWithSaga } from '../services/authService';
 
 function LoginPage({ onLoginSuccess }) {
   const navigate = useNavigate();
@@ -37,10 +37,12 @@ function LoginPage({ onLoginSuccess }) {
     e.preventDefault();
 
     try {
-      await register(registerForm);
-      showNotice('Registration successful. You can now log in.', 'success');
-      setLoginForm({ email: '', password: '' });
-      setRegisterForm({ username: '', email: '', password: '', role: 'tourist' });
+      const data = await registerWithSaga(registerForm);
+      localStorage.setItem('soa_token', data.token);
+      localStorage.setItem('soa_user', JSON.stringify(data.user));
+      showNotice('Registration successful. You are now logged in.', 'success');
+      onLoginSuccess(data.token, data.user);
+      navigate('/home');
     } catch (error) {
       showError(error);
     }
