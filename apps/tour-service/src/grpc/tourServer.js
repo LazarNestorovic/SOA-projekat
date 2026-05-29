@@ -9,7 +9,7 @@ const {
 	toTourDto,
 } = require('../controllers/tourController');
 
-const PROTO_PATH = path.join(__dirname, '../../proto/tour/tour.proto');
+const PROTO_PATH = path.join(__dirname, '../../../proto/tour/tour.proto');
 
 const packageDef = protoLoader.loadSync(PROTO_PATH, {
 	keepCase: true,
