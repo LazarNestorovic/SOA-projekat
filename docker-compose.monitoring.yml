@@ -9,6 +9,7 @@ services:
       - ./config/otel-collector-config.yml:/conf/otel-collector-config.yml:ro
     networks:
       - monitoring
+      - soa_network
 
   jaeger:
     image: jaegertracing/all-in-one:latest
@@ -30,7 +31,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - '3000:3000'
+      - '3001:3000'
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
@@ -50,7 +51,8 @@ services:
     image: grafana/promtail:latest
     volumes:
       - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
     command: -config.file=/etc/promtail/promtail-config.yml
     networks:
@@ -59,9 +61,16 @@ services:
   node-exporter:
     image: prom/node-exporter:latest
     pid: 'host'
-    network_mode: 'host'
-    expose:
-      - '9100'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    networks:
+      - monitoring
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -70,10 +79,15 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-    network_mode: 'host'
+    ports:
+      - '8089:8080'
+    networks:
+      - monitoring
 
   observability-service:
     build: ./apps/observability-service
+    ports:
+      - '8001:8001'
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
     networks:
@@ -82,3 +96,6 @@ services:
 networks:
   monitoring:
     driver: bridge
+  soa_network:
+    external: true
+    name: soa-projekat_soa_network
