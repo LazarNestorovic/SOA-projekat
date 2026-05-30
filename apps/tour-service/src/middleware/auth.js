@@ -13,7 +13,6 @@ const authenticate = async (req, res, next) => {
 
 	try {
 		const resp = await validateToken(token);
-		// resp: { user_id, username, email, role }
 		req.user = {
 			user_id: resp.user_id,
 			username: resp.username,
