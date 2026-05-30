@@ -55,3 +55,19 @@ func (c *TourClient) UpdateTourStatus(ctx context.Context, req *pb.UpdateTourSta
 	}
 	return resp, nil
 }
+
+func (c *TourClient) GetTour(ctx context.Context, req *pb.GetTourRequest) (*pb.TourResponse, error) {
+	resp, err := c.client.GetTour(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("tour gRPC GetTour: %w", err)
+	}
+	return resp, nil
+}
+
+func (c *TourClient) GetPublishedTours(ctx context.Context, req *pb.GetPublishedToursRequest) (*pb.TourListResponse, error) {
+	resp, err := c.client.GetPublishedTours(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("tour gRPC GetPublishedTours: %w", err)
+	}
+	return resp, nil
+}

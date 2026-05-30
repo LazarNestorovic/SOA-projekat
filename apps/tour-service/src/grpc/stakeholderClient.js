@@ -14,7 +14,7 @@ const protoLoader = require('@grpc/proto-loader');
 
 const PROTO_PATH = path.join(
 	__dirname,
-	'../../../proto/stakeholder/stakeholder.proto',
+	'../../proto/stakeholder/stakeholder.proto',
 );
 
 const packageDef = protoLoader.loadSync(PROTO_PATH, {

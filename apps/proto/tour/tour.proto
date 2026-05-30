@@ -7,6 +7,8 @@ option go_package = "api-gateway/pb";
 service TourService {
   rpc CreateTour(CreateTourRequest) returns (TourResponse);
   rpc UpdateTourStatus(UpdateTourStatusRequest) returns (TourResponse);
+  rpc GetTour(GetTourRequest) returns (TourResponse);
+  rpc GetPublishedTours(GetPublishedToursRequest) returns (TourListResponse);
 }
 
 message CreateTourRequest {
@@ -26,6 +28,18 @@ message UpdateTourStatusRequest {
   string status = 4;
 }
 
+message GetTourRequest {
+  uint32 id = 1;
+}
+
+message GetPublishedToursRequest {
+  uint32 user_id = 1;
+}
+
+message TourListResponse {
+  repeated TourResponse tours = 1;
+}
+
 message TourResponse {
   uint32 id = 1;
   uint32 user_id = 2;
@@ -40,4 +54,6 @@ message TourResponse {
   string published_at = 11;
   string archived_at = 12;
   string created_at = 13;
+  bool is_purchased = 14;
+  bool in_cart = 15;
 }
