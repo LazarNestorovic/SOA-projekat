@@ -1,3 +1,14 @@
+// Try to load OpenTelemetry instrumentation if available (optional)
+try {
+	require('../otel');
+} catch (err) {
+	console.warn(
+		'OpenTelemetry not initialized (optional):',
+		err && err.message ? err.message : err,
+	);
+}
+const logger = require('./logger');
+const { metricsMiddleware, register } = require('./metrics');
 const express = require('express');
 const cors = require('cors');
 const { runMigrations } = require('./config/database');
@@ -5,23 +16,43 @@ const { authenticate } = require('./middleware/auth');
 const tourController = require('./controllers/tourController');
 const cartController = require('./controllers/cartController');
 const tourExecutionController = require('./controllers/tourExecutionController');
+const { startGrpcServer } = require('./grpc/tourServer');
 
 const app = express();
 
 // OVO OBRISATI DA SE NE DUPLIRA SA API GATEWAY CORSOM
 // app.use(cors());
 app.use(express.json());
+// metrics + logging middleware
+app.use(metricsMiddleware);
 
 // Pokretanje migracija baze pri podizanju
 runMigrations();
+startGrpcServer();
 
 app.get('/health', (req, res) => {
+	logger.info({ msg: 'health check' });
 	res.status(200).json({ status: 'healthy', service: 'tour-service' });
+});
+
+// Expose Prometheus metrics
+app.get('/metrics', async (req, res) => {
+	try {
+		res.set('Content-Type', register.contentType);
+		res.send(await register.metrics());
+	} catch (err) {
+		logger.error({ err, msg: 'failed to scrape metrics' });
+		res.status(500).end();
+	}
 });
 
 // Ture za vodiče/admin
 app.post('/api/tours', authenticate, tourController.createTour);
-app.patch('/api/tours/:id/status', authenticate, tourController.updateTourStatus);
+app.patch(
+	'/api/tours/:id/status',
+	authenticate,
+	tourController.updateTourStatus,
+);
 app.get('/api/tours/my', authenticate, tourController.getMyTours);
 app.get('/api/tours/all', authenticate, tourController.getAllTours);
 app.post('/api/tours/:id/key-points', authenticate, tourController.addKeyPoint);
@@ -55,17 +86,41 @@ app.get('/api/tours/purchased', authenticate, cartController.getPurchasedTours);
 // Korpa
 app.get('/api/tours/cart', authenticate, cartController.getCart);
 app.post('/api/tours/cart/add/:tourId', authenticate, cartController.addToCart);
-app.delete('/api/tours/cart/remove/:tourId', authenticate, cartController.removeFromCart);
+app.delete(
+	'/api/tours/cart/remove/:tourId',
+	authenticate,
+	cartController.removeFromCart,
+);
 app.post('/api/tours/cart/checkout', authenticate, cartController.checkout);
 
 // Executions
-app.post("/api/tours/:id/purchase", authenticate, tourExecutionController.purchaseTour);
-app.post("/api/tours/:id/executions", authenticate, tourExecutionController.startTour);
-app.put("/api/tours/executions/:executionId/status", authenticate, tourExecutionController.checkStatus);
-app.put("/api/tours/executions/:executionId/complete", authenticate, tourExecutionController.completeTour);
-app.put("/api/tours/executions/:executionId/abandon", authenticate, tourExecutionController.abandonTour);
+app.post(
+	'/api/tours/:id/purchase',
+	authenticate,
+	tourExecutionController.purchaseTour,
+);
+app.post(
+	'/api/tours/:id/executions',
+	authenticate,
+	tourExecutionController.startTour,
+);
+app.put(
+	'/api/tours/executions/:executionId/status',
+	authenticate,
+	tourExecutionController.checkStatus,
+);
+app.put(
+	'/api/tours/executions/:executionId/complete',
+	authenticate,
+	tourExecutionController.completeTour,
+);
+app.put(
+	'/api/tours/executions/:executionId/abandon',
+	authenticate,
+	tourExecutionController.abandonTour,
+);
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
-	console.log(`Tour service (Node) pokrenut na portu ${PORT}`);
+	logger.info({ msg: `Tour service (Node) pokrenut na portu ${PORT}` });
 });

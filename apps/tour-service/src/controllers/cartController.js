@@ -68,7 +68,9 @@ const addToCart = async (req, res) => {
 		const tour = tourResult.rows[0];
 
 		if (tour.status === 'archived') {
-			return res.status(400).json({ error: 'Arhivirana tura se ne može kupiti' });
+			return res
+				.status(400)
+				.json({ error: 'Arhivirana tura se ne može kupiti' });
 		}
 
 		if (tour.status !== 'published') {
@@ -161,7 +163,10 @@ const checkout = async (req, res) => {
 				'SELECT status FROM tours WHERE id = $1',
 				[item.tour_id],
 			);
-			if (tourCheck.rows.length === 0 || tourCheck.rows[0].status === 'archived') {
+			if (
+				tourCheck.rows.length === 0 ||
+				tourCheck.rows[0].status === 'archived'
+			) {
 				return res.status(400).json({
 					error: `Tura "${item.tour_name}" nije dostupna za kupovinu`,
 				});
@@ -182,7 +187,9 @@ const checkout = async (req, res) => {
 			} catch (err) {
 				if (err.grpcCode !== undefined) {
 					// FAILED_PRECONDITION → nedovoljan balans
-					return res.status(402).json({ error: 'Nedovoljan balans za kupovinu' });
+					return res
+						.status(402)
+						.json({ error: 'Nedovoljan balans za kupovinu' });
 				}
 				throw err;
 			}
@@ -223,8 +230,9 @@ const getPublishedTours = async (req, res) => {
 	try {
 		const result = await pool.query(
 			`SELECT
-        t.id, t.user_id, t.title, t.description, t.difficulty, t.tags,
-        t.status, t.price, t.created_at,
+				t.id, t.user_id, t.title, t.description, t.difficulty, t.tags,
+				t.status, t.price, t.distance_km, t.transport_times,
+				t.published_at, t.archived_at, t.created_at,
         (
           SELECT json_build_object(
             'id', kp.id, 'name', kp.name, 'description', kp.description,
