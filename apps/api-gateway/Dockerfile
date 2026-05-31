@@ -26,6 +26,13 @@ RUN protoc \
   --proto_path=proto/tour \
   proto/tour/tour.proto
 
+# 1c. Generiši pb/ fajlove za stakeholder RPC
+RUN protoc \
+  --go_out=pb       --go_opt=paths=source_relative \
+  --go-grpc_out=pb  --go-grpc_opt=paths=source_relative \
+  --proto_path=proto/stakeholder \
+  proto/stakeholder/stakeholder.proto
+
 # 2. go mod tidy POSLE generisanja — popunjava go.sum sa grpc/protobuf
 RUN go mod tidy
 

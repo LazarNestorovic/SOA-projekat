@@ -266,6 +266,84 @@ func tourRPCHandler(w http.ResponseWriter, r *http.Request) {
 	proxyHandler(w, r)
 }
 
+func stakeholderRPCHandler(w http.ResponseWriter, r *http.Request) {
+	stakeholderClient := client.NewStakeholderClient()
+
+	role, ok := r.Context().Value("role").(string)
+	if !ok || role == "" {
+		writeJSONError(w, http.StatusForbidden, "Nije moguce proveriti ulogu korisnika")
+		return
+	}
+
+	if r.Method == http.MethodGet && r.URL.Path == "/api/stakeholders/users" {
+		if role != "admin" {
+			writeJSONError(w, http.StatusForbidden, "Samo admin moze videti sve korisnike")
+			return
+		}
+
+		users, err := stakeholderClient.GetUsers(r.Context(), role)
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.PermissionDenied:
+					writeJSONError(w, http.StatusForbidden, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"users": users})
+		return
+	}
+
+	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/stakeholders/users/") {
+		if role != "admin" {
+			writeJSONError(w, http.StatusForbidden, "Samo admin moze videti podatke drugih korisnika")
+			return
+		}
+
+		idPart := strings.TrimPrefix(r.URL.Path, "/api/stakeholders/users/")
+		if idPart == "" || strings.Contains(idPart, "/") {
+			writeJSONError(w, http.StatusNotFound, "Ruta nije pronadjena")
+			return
+		}
+
+		id, err := strconv.Atoi(idPart)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "Nevazeci ID korisnika")
+			return
+		}
+
+		user, err := stakeholderClient.GetUser(r.Context(), uint(id), role)
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.PermissionDenied:
+					writeJSONError(w, http.StatusForbidden, st.Message())
+				case codes.NotFound:
+					writeJSONError(w, http.StatusNotFound, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(user)
+		return
+	}
+
+	proxyHandler(w, r)
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -542,8 +620,11 @@ func main() {
 	protectedHandler := authMiddleware(http.HandlerFunc(proxyHandler))
 	protectedSagaHandler := authMiddleware(http.HandlerFunc(bookTourSagaHandler))
 	tourProtectedHandler := authMiddleware(http.HandlerFunc(tourRPCHandler))
+	stakeholderProtectedHandler := authMiddleware(http.HandlerFunc(stakeholderRPCHandler))
 
 	mux.Handle("/api/blogs/", protectedHandler)
+	mux.Handle("/api/stakeholders/users", stakeholderProtectedHandler)
+	mux.Handle("/api/stakeholders/users/", stakeholderProtectedHandler)
 	mux.Handle("/api/stakeholders/", protectedHandler)
 	mux.Handle("/api/followers/", protectedHandler)
 	mux.Handle("/api/sagas/tours/", protectedSagaHandler)
