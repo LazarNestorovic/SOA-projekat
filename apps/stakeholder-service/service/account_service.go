@@ -25,3 +25,18 @@ func (s *AccountService) BlockAccount(ctx context.Context, id uint) error {
 
 	return nil
 }
+
+func (s *AccountService) DebitBalance(ctx context.Context, userID uint, amount float64) error {
+	if amount <= 0 {
+		return fmt.Errorf("debit amount must be positive")
+	}
+	return s.repo.DebitBalance(ctx, userID, amount)
+}
+
+func (s *AccountService) CreditBalance(ctx context.Context, userID uint, amount float64) error {
+	if amount <= 0 {
+		return fmt.Errorf("credit amount must be positive")
+	}
+	return s.repo.CreditBalance(ctx, userID, amount)
+}
+

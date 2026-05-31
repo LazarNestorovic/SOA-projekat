@@ -9,6 +9,8 @@ option go_package = "stakeholder-service/pb";
 
 service StakeholderService {
   rpc DeductBalance(DeductBalanceRequest) returns (DeductBalanceResponse);
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc GetUsers(GetUsersRequest) returns (UserListResponse);
 }
 
 message DeductBalanceRequest {
@@ -18,4 +20,31 @@ message DeductBalanceRequest {
 
 message DeductBalanceResponse {
   double new_balance = 1;
+}
+
+message GetUserRequest {
+  uint32 user_id = 1;
+  string requester_role = 2;
+}
+
+message GetUsersRequest {
+  string requester_role = 1;
+}
+
+message UserResponse {
+  User user = 1;
+}
+
+message UserListResponse {
+  repeated User users = 1;
+}
+
+message User {
+  uint32 id = 1;
+  string username = 2;
+  string email = 3;
+  string role = 4;
+  bool blocked = 5;
+  double balance = 6;
+  string created_at = 7;
 }

@@ -5,6 +5,7 @@ function AuthPanel({ registerForm, setRegisterForm, loginForm, setLoginForm, onR
     <section className="auth-layout">
       <article className="card">
         <h2>Register</h2>
+        <p className="meta">Registration uses SAGA orchestration.</p>
         <p className="meta">Available roles: guide and tourist</p>
         <form onSubmit={onRegister}>
           <input

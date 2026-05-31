@@ -2,6 +2,7 @@ package main
 
 import (
 	"api-gateway/client"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -123,11 +124,11 @@ func tourRPCHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var payload struct {
-			Title          string         `json:"title"`
-			Description    string         `json:"description"`
-			Difficulty     string         `json:"difficulty"`
-			Tags           []string       `json:"tags"`
-			Price          float64        `json:"price"`
+			Title          string            `json:"title"`
+			Description    string            `json:"description"`
+			Difficulty     string            `json:"difficulty"`
+			Tags           []string          `json:"tags"`
+			Price          float64           `json:"price"`
 			TransportTimes map[string]uint32 `json:"transport_times"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
@@ -265,6 +266,84 @@ func tourRPCHandler(w http.ResponseWriter, r *http.Request) {
 	proxyHandler(w, r)
 }
 
+func stakeholderRPCHandler(w http.ResponseWriter, r *http.Request) {
+	stakeholderClient := client.NewStakeholderClient()
+
+	role, ok := r.Context().Value("role").(string)
+	if !ok || role == "" {
+		writeJSONError(w, http.StatusForbidden, "Nije moguce proveriti ulogu korisnika")
+		return
+	}
+
+	if r.Method == http.MethodGet && r.URL.Path == "/api/stakeholders/users" {
+		if role != "admin" {
+			writeJSONError(w, http.StatusForbidden, "Samo admin moze videti sve korisnike")
+			return
+		}
+
+		users, err := stakeholderClient.GetUsers(r.Context(), role)
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.PermissionDenied:
+					writeJSONError(w, http.StatusForbidden, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"users": users})
+		return
+	}
+
+	if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/stakeholders/users/") {
+		if role != "admin" {
+			writeJSONError(w, http.StatusForbidden, "Samo admin moze videti podatke drugih korisnika")
+			return
+		}
+
+		idPart := strings.TrimPrefix(r.URL.Path, "/api/stakeholders/users/")
+		if idPart == "" || strings.Contains(idPart, "/") {
+			writeJSONError(w, http.StatusNotFound, "Ruta nije pronadjena")
+			return
+		}
+
+		id, err := strconv.Atoi(idPart)
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, "Nevazeci ID korisnika")
+			return
+		}
+
+		user, err := stakeholderClient.GetUser(r.Context(), uint(id), role)
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				switch st.Code() {
+				case codes.PermissionDenied:
+					writeJSONError(w, http.StatusForbidden, st.Message())
+				case codes.NotFound:
+					writeJSONError(w, http.StatusNotFound, st.Message())
+				default:
+					writeJSONError(w, http.StatusInternalServerError, st.Message())
+				}
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(user)
+		return
+	}
+
+	proxyHandler(w, r)
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -279,18 +358,276 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type bookingResponse struct {
+	ID     uint   `json:"id"`
+	TourID uint   `json:"tour_id"`
+	UserID uint   `json:"user_id"`
+	Status string `json:"status"`
+	Price  string `json:"price"`
+}
+
+type registerRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+type registerResponse struct {
+	Message string `json:"message"`
+	User    struct {
+		ID       uint   `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	} `json:"user"`
+}
+
+type issueTokenRequest struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+}
+
+type issueTokenResponse struct {
+	Token string `json:"token"`
+}
+
+func doJSONRequest(client *http.Client, method, url string, body any, headers map[string]string) (*http.Response, []byte, error) {
+	var payload io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return nil, nil, err
+		}
+		payload = bytes.NewReader(encoded)
+	}
+
+	req, err := http.NewRequest(method, url, payload)
+	if err != nil {
+		return nil, nil, err
+	}
+	for k, v := range headers {
+		if v != "" {
+			req.Header.Set(k, v)
+		}
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp, nil, err
+	}
+
+	return resp, respBody, nil
+}
+
+func extractTourID(path string) (string, bool) {
+	prefix := "/api/sagas/tours/"
+	if !strings.HasPrefix(path, prefix) {
+		return "", false
+	}
+	remaining := strings.TrimPrefix(path, prefix)
+	parts := strings.Split(remaining, "/")
+	if len(parts) < 2 || parts[1] != "book" || parts[0] == "" {
+		return "", false
+	}
+	return parts[0], true
+}
+
+func bookTourSagaHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(uint)
+	if !ok || userID == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Neautentifikovan korisnik"})
+		return
+	}
+
+	tourID, ok := extractTourID(r.URL.Path)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Ruta nije pronađena"})
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	authHeader := r.Header.Get("Authorization")
+	roleHeader, _ := r.Context().Value("role").(string)
+	headers := map[string]string{
+		"Authorization": authHeader,
+		"X-User-ID":     fmt.Sprintf("%d", userID),
+		"X-User-Role":   roleHeader,
+	}
+
+	bookingURL := fmt.Sprintf("http://tour-service:8085/api/tours/%s/bookings", tourID)
+	resp, respBody, err := doJSONRequest(client, http.MethodPost, bookingURL, map[string]string{}, headers)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Greška pri kreiranju rezervacije"})
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		w.WriteHeader(resp.StatusCode)
+		w.Write(respBody)
+		return
+	}
+
+	var booking bookingResponse
+	if err := json.Unmarshal(respBody, &booking); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći odgovor rezervacije"})
+		return
+	}
+
+	price, err := strconv.ParseFloat(booking.Price, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći iznos rezervacije"})
+		return
+	}
+
+	debitURL := "http://stakeholder-service:8082/api/stakeholders/balance/debit"
+	debitBody := map[string]float64{"amount": price}
+	resp, respBody, err = doJSONRequest(client, http.MethodPost, debitURL, debitBody, headers)
+	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		cancelURL := fmt.Sprintf("http://tour-service:8085/api/tours/bookings/%d/status", booking.ID)
+		_, _, _ = doJSONRequest(client, http.MethodPatch, cancelURL, map[string]string{"status": "cancelled"}, headers)
+
+		status := http.StatusBadGateway
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		w.WriteHeader(status)
+		if len(respBody) > 0 {
+			w.Write(respBody)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"error": "Greška pri naplati"})
+		return
+	}
+
+	confirmURL := fmt.Sprintf("http://tour-service:8085/api/tours/bookings/%d/status", booking.ID)
+	resp, respBody, err = doJSONRequest(client, http.MethodPatch, confirmURL, map[string]string{"status": "confirmed"}, headers)
+	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		refundURL := "http://stakeholder-service:8082/api/stakeholders/balance/credit"
+		_, _, _ = doJSONRequest(client, http.MethodPost, refundURL, debitBody, headers)
+
+		status := http.StatusBadGateway
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		w.WriteHeader(status)
+		if len(respBody) > 0 {
+			w.Write(respBody)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"error": "Greška pri potvrdi rezervacije"})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBody)
+}
+
+func registerSagaHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var req registerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći zahtev"})
+		return
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	registerURL := "http://stakeholder-service:8082/api/stakeholders/auth/register"
+	resp, respBody, err := doJSONRequest(client, http.MethodPost, registerURL, req, map[string]string{})
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Greška pri registraciji"})
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		w.WriteHeader(resp.StatusCode)
+		w.Write(respBody)
+		return
+	}
+
+	var registerResp registerResponse
+	if err := json.Unmarshal(respBody, &registerResp); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći odgovor registracije"})
+		return
+	}
+
+	issueURL := "http://auth-service:8081/token/issue"
+	issueBody := issueTokenRequest{
+		UserID:   registerResp.User.ID,
+		Username: registerResp.User.Username,
+		Email:    registerResp.User.Email,
+		Role:     registerResp.User.Role,
+	}
+	resp, respBody, err = doJSONRequest(client, http.MethodPost, issueURL, issueBody, map[string]string{})
+	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		deleteURL := fmt.Sprintf("http://stakeholder-service:8082/internal/users/%d", registerResp.User.ID)
+		_, _, _ = doJSONRequest(client, http.MethodDelete, deleteURL, nil, map[string]string{})
+
+		status := http.StatusBadGateway
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		w.WriteHeader(status)
+		if len(respBody) > 0 {
+			w.Write(respBody)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"error": "Greška pri generisanju tokena"})
+		return
+	}
+
+	var tokenResp issueTokenResponse
+	if err := json.Unmarshal(respBody, &tokenResp); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Nevažeći odgovor tokena"})
+		return
+	}
+
+	response := map[string]any{
+		"token": tokenResp.Token,
+		"user":  registerResp.User,
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/api/stakeholders/auth/login", http.HandlerFunc(proxyHandler))
 	mux.Handle("/api/stakeholders/auth/register", http.HandlerFunc(proxyHandler))
+	mux.Handle("/api/sagas/register", http.HandlerFunc(registerSagaHandler))
 
 	protectedHandler := authMiddleware(http.HandlerFunc(proxyHandler))
+	protectedSagaHandler := authMiddleware(http.HandlerFunc(bookTourSagaHandler))
 	tourProtectedHandler := authMiddleware(http.HandlerFunc(tourRPCHandler))
+	stakeholderProtectedHandler := authMiddleware(http.HandlerFunc(stakeholderRPCHandler))
 
 	mux.Handle("/api/blogs/", protectedHandler)
+	mux.Handle("/api/stakeholders/users", stakeholderProtectedHandler)
+	mux.Handle("/api/stakeholders/users/", stakeholderProtectedHandler)
 	mux.Handle("/api/stakeholders/", protectedHandler)
 	mux.Handle("/api/followers/", protectedHandler)
+	mux.Handle("/api/sagas/tours/", protectedSagaHandler)
 	mux.Handle("/api/tours", tourProtectedHandler)
 	mux.Handle("/api/tours/", tourProtectedHandler)
 

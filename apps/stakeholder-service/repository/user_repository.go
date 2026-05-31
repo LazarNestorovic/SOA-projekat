@@ -190,6 +190,22 @@ func (r *UserRepository) GetAll() ([]*model.User, error) {
 	return users, nil
 }
 
+func (r *UserRepository) DeleteByID(ctx context.Context, id uint) error {
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("greška pri brisanju korisnika: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("greška pri proveri brisanja: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("korisnik ne postoji")
+	}
+	return nil
+}
+
 func (r *UserRepository) TopUpBalance(ctx context.Context, id uint, amount float64) (float64, error) {
 	var newBalance float64
 	err := r.db.QueryRowContext(ctx,

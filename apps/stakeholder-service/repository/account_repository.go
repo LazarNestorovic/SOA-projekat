@@ -41,3 +41,39 @@ func (r *AccountRepository) BlockAccount(ctx context.Context, id uint) error {
 
 	return nil
 }
+
+func (r *AccountRepository) DebitBalance(ctx context.Context, userID uint, amount float64) error {
+	query := `
+		UPDATE users
+		SET balance = balance - $1
+		WHERE id = $2 AND balance >= $1
+	`
+	result, err := r.db.ExecContext(ctx, query, amount, userID)
+	if err != nil {
+		return fmt.Errorf("failed to debit balance: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("insufficient funds or user not found")
+	}
+
+	return nil
+}
+
+func (r *AccountRepository) CreditBalance(ctx context.Context, userID uint, amount float64) error {
+	query := `
+		UPDATE users
+		SET balance = balance + $1
+		WHERE id = $2
+	`
+	_, err := r.db.ExecContext(ctx, query, amount, userID)
+	if err != nil {
+		return fmt.Errorf("failed to credit balance: %w", err)
+	}
+	return nil
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getCart, removeFromCart, checkout } from '../../services/tourService';
+import { getCart, removeFromCart, bookTourWithSaga } from '../../services/tourService';
 
 function ShoppingCartPanel({ token, onNotice, onError, active, onPurchased }) {
   const [cart, setCart] = useState(null);
@@ -39,9 +39,16 @@ function ShoppingCartPanel({ token, onNotice, onError, active, onPurchased }) {
   const handleCheckout = async () => {
     setCheckingOut(true);
     try {
-      const result = await checkout(token);
+      let successCount = 0;
+
+      for (const item of items) {
+        await bookTourWithSaga(token, item.tour_id);
+        await removeFromCart(token, item.tour_id);
+        successCount += 1;
+      }
+
       setCart((prev) => ({ ...prev, items: [], total_price: 0 }));
-      onNotice(`Kupovina uspešna! Kupljeno ${result.tokens.length} tura.`, 'success');
+      onNotice(`Rezervacija uspešna! Kupljeno ${successCount} tura.`, 'success');
       if (onPurchased) onPurchased();
     } catch (err) {
       onError(err);
@@ -112,7 +119,7 @@ function ShoppingCartPanel({ token, onNotice, onError, active, onPurchased }) {
               disabled={checkingOut}
               style={{ padding: '12px 28px', fontSize: '15px' }}
             >
-              {checkingOut ? 'Obrađujem...' : 'Plati i kupi'}
+              {checkingOut ? 'Obrađujem...' : 'Plati i rezerviši'}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const crypto = require('crypto');
 
 // Allowed transport types for travel times
 const TRANSPORT_TYPES = ['peske', 'bicikl', 'automobil'];
@@ -498,6 +499,77 @@ const updateKeyPoint = async (req, res) => {
 	}
 };
 
+const createBooking = async (req, res) => {
+	const { tourId } = req.params;
+	const userId = req.user.user_id;
+
+	try {
+		const tourResult = await pool.query(
+			"SELECT price FROM tours WHERE id = $1 AND status = 'published'",
+			[tourId],
+		);
+		if (tourResult.rows.length === 0) {
+			return res.status(404).json({ error: 'Objavljena tura nije pronađena.' });
+		}
+		const price = tourResult.rows[0].price;
+
+		const bookingResult = await pool.query(
+			"INSERT INTO tour_bookings (tour_id, user_id, status, price) VALUES ($1, $2, 'pending', $3) RETURNING *",
+			[tourId, userId, price],
+		);
+
+		res.status(201).json(bookingResult.rows[0]);
+	} catch (error) {
+		console.error('Greška pri kreiranju rezervacije:', error);
+		res.status(500).json({ error: 'Serverska greška pri kreiranju rezervacije' });
+	}
+};
+
+const updateBookingStatus = async (req, res) => {
+	const { bookingId } = req.params;
+	const { status } = req.body;
+
+	if (!['confirmed', 'cancelled'].includes(status)) {
+		return res.status(400).json({ error: 'Nevalidan status' });
+	}
+
+	try {
+		const result = await pool.query(
+			'UPDATE tour_bookings SET status = $1 WHERE id = $2 RETURNING *',
+			[status, bookingId],
+		);
+
+		if (result.rows.length === 0) {
+			return res.status(404).json({ error: 'Rezervacija nije pronađena' });
+		}
+
+		const booking = result.rows[0];
+
+		if (status === 'confirmed') {
+			const token = crypto.randomBytes(32).toString('hex');
+
+			await pool.query(
+				`INSERT INTO tour_purchase_tokens (tourist_id, tour_id, token)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (tourist_id, tour_id) DO NOTHING`,
+				[booking.user_id, booking.tour_id, token],
+			);
+
+			await pool.query(
+				`INSERT INTO tour_purchases (tour_id, tourist_id, price)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (tour_id, tourist_id) DO NOTHING`,
+				[booking.tour_id, booking.user_id, booking.price],
+			);
+		}
+
+		res.status(200).json(booking);
+	} catch (error) {
+		console.error('Greška pri ažuriranju statusa rezervacije:', error);
+		res.status(500).json({ error: 'Serverska greška' });
+	}
+};
+
 const deleteKeyPoint = async (req, res) => {
 	const { keyPointId } = req.params;
 	const userId = req.user.user_id;
@@ -681,4 +753,6 @@ module.exports = {
 	getReviews,
 	getCurrentPosition,
 	upsertCurrentPosition,
+	createBooking,
+	updateBookingStatus,
 };

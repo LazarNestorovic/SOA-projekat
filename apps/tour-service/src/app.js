@@ -120,6 +120,10 @@ app.put(
 	tourExecutionController.abandonTour,
 );
 
+// Bookings
+app.post('/api/tours/:tourId/bookings', authenticate, tourController.createBooking);
+app.patch('/api/tours/bookings/:bookingId/status', authenticate, tourController.updateBookingStatus);
+
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
 	logger.info({ msg: `Tour service (Node) pokrenut na portu ${PORT}` });

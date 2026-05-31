@@ -1,7 +1,12 @@
-import { stakeholderClient, authHeader } from './httpClient';
+import { stakeholderClient, sagaClient, authHeader } from './httpClient';
 
 export async function register(payload) {
   const { data } = await stakeholderClient.post('/auth/register', payload);
+  return data;
+}
+
+export async function registerWithSaga(payload) {
+  const { data } = await sagaClient.post('/register', payload);
   return data;
 }
 

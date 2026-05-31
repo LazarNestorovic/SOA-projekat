@@ -17,6 +17,10 @@ export const tourClient = axios.create({
   baseURL: appConfig.api.tourBaseUrl,
 });
 
+export const sagaClient = axios.create({
+  baseURL: `${appConfig.proxy.gatewayTarget}/api/sagas`,
+});
+
 export function authHeader(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
