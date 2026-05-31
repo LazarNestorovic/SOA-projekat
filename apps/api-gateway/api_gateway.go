@@ -165,6 +165,48 @@ func tourRPCHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path == "/api/tours/published" && r.Method == http.MethodGet {
+		userID, _, _ := getUserContextValue(r)
+		resp, err := tourClient.GetPublishedTours(r.Context(), &pb.GetPublishedToursRequest{UserId: uint32(userID)})
+		if err != nil {
+			if st, ok := status.FromError(err); ok {
+				writeJSONError(w, http.StatusInternalServerError, st.Message())
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp.Tours)
+		return
+	}
+
+	if strings.HasPrefix(r.URL.Path, "/api/tours/") && r.Method == http.MethodGet {
+		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		if len(parts) == 3 {
+			id, err := strconv.Atoi(parts[2])
+			if err == nil {
+				resp, err := tourClient.GetTour(r.Context(), &pb.GetTourRequest{Id: uint32(id)})
+				if err != nil {
+					if st, ok := status.FromError(err); ok {
+						switch st.Code() {
+						case codes.NotFound:
+							writeJSONError(w, http.StatusNotFound, st.Message())
+						default:
+							writeJSONError(w, http.StatusInternalServerError, st.Message())
+						}
+						return
+					}
+					writeJSONError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(resp)
+				return
+			}
+		}
+	}
+
 	if strings.HasPrefix(r.URL.Path, "/api/tours/") && strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodPatch {
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 		if len(parts) != 4 {

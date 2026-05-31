@@ -1,3 +1,14 @@
+// Try to load OpenTelemetry instrumentation if available (optional)
+try {
+	require('../otel');
+} catch (err) {
+	console.warn(
+		'OpenTelemetry not initialized (optional):',
+		err && err.message ? err.message : err,
+	);
+}
+const logger = require('./logger');
+const { metricsMiddleware, register } = require('./metrics');
 const express = require('express');
 const cors = require('cors');
 const { runMigrations } = require('./config/database');
@@ -12,13 +23,27 @@ const app = express();
 // OVO OBRISATI DA SE NE DUPLIRA SA API GATEWAY CORSOM
 // app.use(cors());
 app.use(express.json());
+// metrics + logging middleware
+app.use(metricsMiddleware);
 
 // Pokretanje migracija baze pri podizanju
 runMigrations();
 startGrpcServer();
 
 app.get('/health', (req, res) => {
+	logger.info({ msg: 'health check' });
 	res.status(200).json({ status: 'healthy', service: 'tour-service' });
+});
+
+// Expose Prometheus metrics
+app.get('/metrics', async (req, res) => {
+	try {
+		res.set('Content-Type', register.contentType);
+		res.send(await register.metrics());
+	} catch (err) {
+		logger.error({ err, msg: 'failed to scrape metrics' });
+		res.status(500).end();
+	}
 });
 
 // Ture za vodiče/admin
@@ -101,5 +126,5 @@ app.patch('/api/tours/bookings/:bookingId/status', authenticate, tourController.
 
 const PORT = process.env.SERVER_PORT || 8085;
 app.listen(PORT, () => {
-	console.log(`Tour service (Node) pokrenut na portu ${PORT}`);
+	logger.info({ msg: `Tour service (Node) pokrenut na portu ${PORT}` });
 });

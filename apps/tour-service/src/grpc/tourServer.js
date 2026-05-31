@@ -8,6 +8,7 @@ const {
 	updateTourStatusRecord,
 	toTourDto,
 } = require('../controllers/tourController');
+const { pool } = require('../config/database');
 
 const PROTO_PATH = path.join(__dirname, '../../proto/tour/tour.proto');
 
@@ -71,6 +72,50 @@ function startGrpcServer() {
 					code: mapGrpcError(error),
 					message: error.message || 'Greška pri promeni statusa',
 				});
+			}
+		},
+		GetTour: async (call, callback) => {
+			try {
+				const result = await pool.query('SELECT * FROM tours WHERE id = $1', [call.request.id]);
+				if (result.rows.length === 0) {
+					return callback({ code: grpc.status.NOT_FOUND, message: 'Tura nije pronađena' });
+				}
+				callback(null, toTourDto(result.rows[0]));
+			} catch (error) {
+				callback({ code: grpc.status.INTERNAL, message: error.message || 'Greška pri dohvatanju ture' });
+			}
+		},
+		GetPublishedTours: async (call, callback) => {
+			try {
+				const userId = call.request.user_id;
+				const result = await pool.query(
+					`SELECT
+						t.id, t.user_id, t.title, t.description, t.difficulty, t.tags,
+						t.status, t.price, t.distance_km, t.transport_times,
+						t.published_at, t.archived_at, t.created_at,
+						EXISTS(
+							SELECT 1 FROM tour_purchase_tokens tpt
+							WHERE tpt.tourist_id = $1 AND tpt.tour_id = t.id
+						) AS is_purchased,
+						EXISTS(
+							SELECT 1 FROM order_items oi
+							JOIN shopping_carts sc ON sc.id = oi.cart_id
+							WHERE sc.tourist_id = $1 AND oi.tour_id = t.id
+						) AS in_cart
+					FROM tours t
+					WHERE t.status = 'published'
+					ORDER BY t.created_at DESC`,
+					[userId],
+				);
+				callback(null, {
+					tours: result.rows.map((row) => ({
+						...toTourDto(row),
+						is_purchased: row.is_purchased,
+						in_cart: row.in_cart,
+					})),
+				});
+			} catch (error) {
+				callback({ code: grpc.status.INTERNAL, message: error.message || 'Greška pri dohvatanju tura' });
 			}
 		},
 	});
